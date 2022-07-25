@@ -4,6 +4,8 @@ import os
 import torch
 import datetime
 import shutil
+import csv
+
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
 from monai.utils import set_determinism
@@ -15,7 +17,7 @@ from monai.networks.nets import DynUNet
 import time
 from tqdm import tqdm
 
-from image_dataset import get_datasests, get_post_trasnformation
+from image_dataset import get_dataset, get_post_transformation
 from visualizer import plot_losses_and_metrics, plot_sample
 
 # Parse input arguments
@@ -31,7 +33,8 @@ with open(path) as filepath:
 
 set_determinism(seed=0)
 
-train_loader, val_loader = get_datasests(config)
+train_loader = get_dataset(config, 'train')
+val_loader = get_dataset(config, 'validation')
 
 max_epochs = config["Train"]["epochs"]
 val_interval = config["Train"]["val_interval"]
@@ -56,7 +59,7 @@ lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_e
 dice_metric = DiceMetric(include_background=True, reduction="mean")
 dice_metric_batch = DiceMetric(include_background=True, reduction="mean_batch")
 
-post_trans = get_post_trasnformation()
+post_trans = get_post_transformation()
 
 # use amp to accelerate training
 scaler = torch.cuda.amp.GradScaler()
@@ -82,6 +85,13 @@ def inference(input):
 save_dir = os.path.join(config["Output"]["save_dir"], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
 os.mkdir(save_dir)
 shutil.copyfile(args.config_file, os.path.join(save_dir, 'config.json'))
+
+log_file_path = os.path.join(save_dir, 'metrics.csv')
+with open(log_file_path, 'w') as file:
+    writer = csv.writer(file)
+    writer.writerow(["Epoch", "Average Loss", "Val Mean Dice Score"])
+
+
 # TRAINING BEGINS HERE
 
 best_metric = -1
@@ -146,7 +156,9 @@ for epoch in epoch_tqdm:
                     model.state_dict(),
                     os.path.join(save_dir, "best_metric_model.pth"),
                 )
-                # print("saved new best metric model")
+            with open(log_file_path, 'a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow([epoch, epoch_loss, metric])
             plot_losses_and_metrics(
                 epoch_loss_values=epoch_loss_values,
                 metric_values=metric_values,
@@ -154,11 +166,6 @@ for epoch in epoch_tqdm:
                 save_dir=save_dir
             )
             plot_sample(val_inputs[0], val_outputs[0], val_labels[0], save_dir=save_dir)
-            # print(
-            #     f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"
-            #     f"\nbest mean dice: {best_metric:.4f}"
-            #     f" at epoch: {best_metric_epoch}"
-            # )
 total_time = time.time() - total_start
 
 print(f'Finished training after {str(datetime.timedelta(seconds=total_time))}')

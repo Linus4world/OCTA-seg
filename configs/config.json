@@ -10,7 +10,12 @@
     "Train": {
         "epochs": 15,
         "val_interval": 1,
-        "batch_size": 4
+        "batch_size": 4,
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train/"
+    },
+    "Validation": {
+        "batch_size": 4,
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/val/"
     },
     "Output": {
         "save_dir": "/home/lkreitner/OCTA-seg/results/"
