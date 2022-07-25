@@ -15,7 +15,8 @@
     },
     "Validation": {
         "batch_size": 4,
-        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/val/"
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/val/",
+        "model_path": "/home/lkreitner/OCTA-seg/results/20220725_160930/best_metric_model.pth"
     },
     "Output": {
         "save_dir": "/home/lkreitner/OCTA-seg/results/"
