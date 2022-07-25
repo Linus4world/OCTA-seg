@@ -3,5 +3,4 @@ __pycache__
 
 datasets/
 results/
-images/
 debug.*
