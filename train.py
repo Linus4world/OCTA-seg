@@ -101,7 +101,7 @@ for epoch in epoch_tqdm:
         step += 1
         inputs, labels = (
             batch_data["image"].to(device).half(),
-            batch_data["label"].to(device).unsqueeze(1).half(),
+            batch_data["label"].to(device).half(),
         )
         optimizer.zero_grad()
         with torch.cuda.amp.autocast():
@@ -123,7 +123,7 @@ for epoch in epoch_tqdm:
             for val_data in tqdm(val_loader, desc='Validation', leave=False):
                 val_inputs, val_labels = (
                     val_data["image"].to(device).half(),
-                    val_data["label"].to(device).unsqueeze(1).half(),
+                    val_data["label"].to(device).half(),
                 )
                 val_outputs = inference(val_inputs)
                 val_outputs = [post_trans(i) for i in decollate_batch(val_outputs)]
@@ -153,7 +153,7 @@ for epoch in epoch_tqdm:
                 val_interval=val_interval,
                 save_dir=save_dir
             )
-            plot_sample(val_inputs[0], val_labels[0], val_outputs[0], save_dir=save_dir)
+            plot_sample(val_inputs[0], val_outputs[0], val_labels[0], save_dir=save_dir)
             # print(
             #     f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"
             #     f"\nbest mean dice: {best_metric:.4f}"

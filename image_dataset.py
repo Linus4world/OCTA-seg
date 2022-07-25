@@ -1,7 +1,8 @@
 from monai.data import DataLoader, Dataset
-from monai.transforms import Activations, AsDiscrete, Compose, LoadImage, ScaleIntensity, RandFlipd
+from monai.transforms import Activations, AsDiscrete, Compose, LoadImage, ScaleIntensity, RandFlipd, Rotate, Flip
 from data_transforms import AddRandomNoised, SegmentWithThresholdd, ToDict, ToTorch
 import os
+from numpy import deg2rad
 
 def get_custom_file_paths(folder, name):
     image_file_paths = []
@@ -19,16 +20,20 @@ def get_transformations(config) -> tuple:
         LoadImage(image_only=True),
         ScaleIntensity(0, 1),
         ToTorch(),
+        Rotate(deg2rad(270)),
+        Flip(0),
         ToDict(),
         r,
         SegmentWithThresholdd(0),
-        # RandFlipd(keys=["image", "label"], prob=0.25, spatial_axis=0),
-        # RandFlipd(keys=["image", "label"], prob=0.25, spatial_axis=1)
+        RandFlipd(keys=["image", "label"], prob=0.25, spatial_axis=0),
+        RandFlipd(keys=["image", "label"], prob=0.25, spatial_axis=1)
     ])
     val_transform = Compose([
         LoadImage(image_only=True),
         ScaleIntensity(0, 1),
         ToTorch(),
+        Rotate(deg2rad(270)),
+        Flip(0),
         ToDict(),
         r,
         SegmentWithThresholdd(0),

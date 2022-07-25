@@ -30,7 +30,7 @@ class AddRandomNoised(MapTransform):
 
     def __call__(self, data: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         if self.noise_layer is not None:
-            img = data["image"].unsqueeze(0)
+            img = data["image"]
             if self.noise_layer.shape != img.shape:
                 self.scale_noise_map(img)
             mean = normal(loc=self.mean, scale=0.03)
@@ -65,4 +65,4 @@ class ToDict(Transform):
 
 class ToTorch(Transform):
     def __call__(self, data) -> torch.Tensor:
-        return torch.from_numpy(data)
+        return torch.from_numpy(data).unsqueeze(0)
