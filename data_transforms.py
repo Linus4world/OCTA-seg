@@ -36,7 +36,7 @@ class AddRandomNoised(MapTransform):
             mean = normal(loc=self.mean, scale=0.03)
             N = torch.randn_like(img) * self.std + mean
             kernel = torch.full((1,1,*self.kernel_size), 1/prod(self.kernel_size))
-            N = torch.conv2d(img, kernel, padding='same')
+            N = torch.conv2d(N, kernel, padding='same')
             N = N * self.noise_layer
             img = torch.clamp(self.image_weight*img + self.noise_weight*N, 0, 1)
             data["image"] = img

@@ -3,6 +3,7 @@ import json
 import os
 import torch
 import datetime
+import shutil
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
 from monai.utils import set_determinism
@@ -80,6 +81,7 @@ def inference(input):
 
 save_dir = os.path.join(config["Output"]["save_dir"], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
 os.mkdir(save_dir)
+shutil.copyfile(args.config_file, os.path.join(save_dir, 'config.json'))
 # TRAINING BEGINS HERE
 
 best_metric = -1

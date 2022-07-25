@@ -5,7 +5,7 @@ import numpy as np
 # from monai.visualize import plot_2d_or_3d_image
 
 loss_fig = plt.figure("train", (12, 6))
-sample_fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+sample_fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
 
 def plot_losses_and_metrics(epoch_loss_values: list[float], metric_values: list[float], val_interval: int, save_dir: str):
     plt.figure(loss_fig.number)
