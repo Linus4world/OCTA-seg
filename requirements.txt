@@ -1,0 +1,6 @@
+monai
+numpy
+matplotlib
+tqdm
+ipykernel
+monai

@@ -1,0 +1,18 @@
+{
+    "General": {
+        "amp": true,
+        "device": "cuda:0"
+    },
+    "Data": {
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/",
+        "noise_map_path": "/home/lkreitner/arterial-tree-generation/geometries/slab_noise.npy"
+    },
+    "Train": {
+        "epochs": 10,
+        "val_interval": 1,
+        "batch_size": 1
+    },
+    "Output": {
+        "save_dir": "/home/lkreitner/OCTA-seg/results/"
+    }
+}
