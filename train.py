@@ -18,7 +18,7 @@ import time
 from tqdm import tqdm
 
 from image_dataset import get_dataset, get_post_transformation
-from visualizer import plot_losses_and_metrics, plot_sample
+from visualizer import plot_losses_and_metrics, plot_sample, save_model_architecture
 
 # Parse input arguments
 parser = argparse.ArgumentParser(description='')
@@ -30,11 +30,15 @@ path = os.path.abspath(args.config_file)
 with open(path) as filepath:
     config = json.load(filepath)
 
+save_dir = os.path.join(config["Output"]["save_dir"], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+os.mkdir(save_dir)
+shutil.copyfile(args.config_file, os.path.join(save_dir, 'config.json'))
 
 set_determinism(seed=0)
 
 train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')
+test_loader = get_dataset(config, 'test')
 
 max_epochs = config["Train"]["epochs"]
 val_interval = config["Train"]["val_interval"]
@@ -51,6 +55,7 @@ model = DynUNet(
     strides=(1,1,1),
     upsample_kernel_size=(1,1,1)
 ).to(device)
+save_model_architecture(model, save_dir)
 
 loss_function = DiceLoss(smooth_nr=0, smooth_dr=1e-5, squared_pred=True, to_onehot_y=False, sigmoid=True)
 optimizer = torch.optim.Adam(model.parameters(), 1e-4, weight_decay=1e-5)
@@ -81,10 +86,6 @@ def inference(input):
             return _compute(input)
     else:
         return _compute(input)
-
-save_dir = os.path.join(config["Output"]["save_dir"], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
-os.mkdir(save_dir)
-shutil.copyfile(args.config_file, os.path.join(save_dir, 'config.json'))
 
 log_file_path = os.path.join(save_dir, 'metrics.csv')
 with open(log_file_path, 'w') as file:
@@ -165,7 +166,8 @@ for epoch in epoch_tqdm:
                 val_interval=val_interval,
                 save_dir=save_dir
             )
-            plot_sample(val_inputs[0], val_outputs[0], val_labels[0], save_dir=save_dir)
+            plot_sample(save_dir, val_inputs[0], val_outputs[0], val_labels[0], number=epoch)
+
 total_time = time.time() - total_start
 
-print(f'Finished training after {str(datetime.timedelta(seconds=total_time))}')
+print(f'Finished training after {str(datetime.timedelta(seconds=total_time))}. Best metric: {best_metric} at epoch: {best_metric_epoch}')
