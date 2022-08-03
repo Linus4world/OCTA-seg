@@ -3,70 +3,143 @@ import os
 import torch
 import numpy as np
 from prettytable import PrettyTable
-# from monai.visualize import plot_2d_or_3d_image
+from torch.utils.tensorboard import SummaryWriter
+import datetime
+import csv
+import shutil
 
-loss_fig = plt.figure("train", (12, 6))
-sample_fig, axes = plt.subplots(1, 3, figsize=(54, 18))
-sample_fig_small, axes = plt.subplots(1, 2, figsize=(36, 18))
+class Visualizer():
+    def __init__(self, config: dict, config_path) -> None:
+        self.config = config
+        self.save_to_disk: bool = config["Output"]["save_to_disk"]
+        self.save_to_tensorboard: bool = config["Output"]["save_to_tensorboard"]
 
-def plot_losses_and_metrics(epoch_loss_values: list[float], metric_values: list[float], val_interval: int, save_dir: str):
-    plt.figure(loss_fig.number)
-    plt.cla()
-    plt.subplot(1, 2, 1)
-    plt.title("Epoch Average Loss")
-    x = [i + 1 for i in range(len(epoch_loss_values))]
-    y = epoch_loss_values
-    plt.xlabel("epoch")
-    plt.plot(x, y, color="red")
-    plt.subplot(1, 2, 2)
-    plt.title("Val Mean Dice")
-    x = [val_interval * (i + 1) for i in range(len(metric_values))]
-    y = metric_values
-    plt.xlabel("epoch")
-    plt.plot(x, y, color="green")
-    plt.savefig(os.path.join(save_dir, 'loss.png'), bbox_inches='tight')
+        self.save_dir = os.path.join(config["Output"]["save_dir"], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+        os.mkdir(self.save_dir)
+        shutil.copyfile(config_path, os.path.join(self.save_dir, 'config.json'))
+        config["Output"]["save_dir"] = self.save_dir
 
-def plot_sample( save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor = None, number: int = None, save=True):
-    input = input.squeeze().detach().cpu().numpy()
-    input = (input * 255).astype(np.uint8)
-    fig = plt.figure(sample_fig.number if truth is not None else sample_fig_small.number)
-    fig.axes[0].set_title("Input")
-    fig.axes[0].imshow(input)#, cmap='Greys')
+        if self.save_to_disk:
+            self.loss_fig = None
+            self.sample_fig, self.axes_sample = plt.subplots(1, 3, figsize=(54, 18))
+            self.sample_fig_small, self.axes_sample_small = plt.subplots(1, 2, figsize=(36, 18))
 
-    pred = pred.squeeze().detach().cpu().numpy()
-    pred = (pred * 255).astype(np.uint8)
-    fig.axes[1].set_title("Prediction")
-    fig.axes[1].imshow(pred)#, cmap='Greys')
+        if self.save_to_tensorboard:
+            self.tb = SummaryWriter(log_dir=self.save_dir)
 
-    if truth is not None:
-        truth = truth.squeeze().detach().cpu().numpy()
-        truth = (truth * 255).astype(np.uint8)
-        fig.axes[2].set_title("Truth")
-        fig.axes[2].imshow(truth)#, cmap='Greys')
+        self.track_record: list[dict[str, dict[str, list[float]]]] = list()
+        self.epochs = []
+        self.log_file_path = None
 
-    if number is not None:
-        number = '_'+str(number)
-    else:
-        number=''
-    if save:
-        plt.savefig(os.path.join(save_dir, f'sample{number}.png'), bbox_inches='tight')
-    else:
-        plt.show()
+    def prepare_log_file(self, record: dict[str, dict[str, float]]):
+        titles = [title for v in record.values() for title in v]
+        titles.insert(0, "epoch")
+        self.log_file_path = os.path.join(self.save_dir, 'metrics.csv')
+        with open(self.log_file_path, 'w+') as file:
+            writer = csv.writer(file)
+            writer.writerow(titles)
 
-def count_parameters(model):
-    table = PrettyTable(["Modules", "Parameters"])
-    total_params = 0
-    for name, parameter in model.named_parameters():
-        if not parameter.requires_grad: continue
-        params = parameter.numel()
-        table.add_row([name, params])
-        total_params+=params
-    s = str(table)
-    s += f"\nTotal Trainable Params: {total_params}"
-    return s
+    def plot_losses_and_metrics(self, metric_groups: dict[str, dict[str, float]], epoch: int):
+        self.track_record.append(dict())
+        if self.log_file_path is None:
+            self.prepare_log_file(metric_groups)
 
-def save_model_architecture(model, save_dir: str):
-    with open(os.path.join(save_dir, 'architecture.txt'), 'w+') as f:
-        f.writelines(str(model))
-        f.write("\n")
-        f.writelines(count_parameters(model))
+        for title, metrics in metric_groups.items():
+            self.track_record[-1][title] = metrics
+        self.epochs.append(epoch)
+
+        with open(self.log_file_path, 'a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow([epoch, [title for v in metric_groups.values() for title in v.values()]])
+
+        if self.save_to_disk:
+            if self.loss_fig is None:
+                self.loss_fig, self.loss_fig_axes = plt.subplots(1,len(metric_groups), figsize=(10,5))
+            plt.figure(self.loss_fig.number)
+            plt.cla()
+            i=0
+            for title, record in self.track_record[-1].items():
+                data_y = [[v for v in data_t[title].values()] for data_t in self.track_record]
+
+                ax: plt.Axes = self.loss_fig_axes[i]
+                ax.set_title(title)
+                ax.set_xlabel("epoch")
+                ax.plot(self.epochs, data_y)
+                ax.legend(list(record.keys()))
+
+                i+=1
+            plt.savefig(os.path.join(self.save_dir, 'loss.png'), bbox_inches='tight')
+        
+        if self.save_to_tensorboard:
+            for title,record in metric_groups.items():
+                self.tb.add_scalars(title, record, epoch+1)
+
+    def plot_sample(self,input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor = None, number: int = None):
+        input = input.squeeze().detach().cpu().numpy()
+        input = (input * 255).astype(np.uint8)
+        
+        if truth is not None:
+            truth = truth.squeeze().detach().cpu().numpy()
+            truth = (truth * 255).astype(np.uint8)
+
+        pred = pred.squeeze().detach().cpu().numpy()
+        pred = (pred * 255).astype(np.uint8)
+        
+        if self.save_to_disk:
+            fig = plt.figure(self.sample_fig.number if truth is not None else self.sample_fig_small.number)
+
+            fig.axes[0].set_title("Input")
+            fig.axes[0].imshow(input)#, cmap='Greys')
+
+            fig.axes[1].set_title("Prediction")
+            fig.axes[1].imshow(pred)#, cmap='Greys')
+
+            if truth is not None:
+                fig.axes[2].set_title("Truth")
+                fig.axes[2].imshow(truth)#, cmap='Greys')
+
+            if number is not None:
+                number = '_'+str(number)
+            else:
+                number=''
+            plt.savefig(os.path.join(self.save_dir, f'sample{number}.png'), bbox_inches='tight')
+
+        if self.save_to_tensorboard:
+            if truth is not None:
+                images = np.expand_dims(np.stack([input, pred, truth]),1)
+                label = "Input, Pred, Truth"
+            else:
+                images = np.expand_dims(np.stack([input, pred]),1)
+                label = "Input, Pred"
+            self.tb.add_images(label, images)
+
+    def _count_parameters(self, model: torch.nn.Module):
+        table = PrettyTable(["Modules", "Parameters"])
+        total_params = 0
+        for name, parameter in model.named_parameters():
+            if not parameter.requires_grad: continue
+            params = parameter.numel()
+            table.add_row([name, params])
+            total_params+=params
+        s = str(table)
+        s += f"\nTotal Trainable Params: {total_params}"
+        return s
+
+    def save_model_architecture(self, model: torch.nn.Module, batch):
+        with open(os.path.join(self.save_dir, 'architecture.txt'), 'w+') as f:
+            f.writelines(str(model))
+            f.write("\n")
+            f.writelines(self._count_parameters(model))
+        if self.save_to_tensorboard:
+            self.tb.add_graph(model, batch)
+
+    def save_model(self, model: torch.nn.Module):
+        torch.save(
+            model.state_dict(),
+            os.path.join(self.save_dir, "best_metric_model.pth"),
+        )
+
+    def log_model_params(self, model: torch.nn.Module, epoch: int):
+        for name, weight in model.named_parameters():
+            self.tb.add_histogram(name,weight, epoch)
+            self.tb.add_histogram(f'{name}.grad',weight.grad, epoch)

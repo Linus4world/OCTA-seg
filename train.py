@@ -3,8 +3,6 @@ import json
 import os
 import torch
 import datetime
-import shutil
-import csv
 
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
@@ -18,7 +16,7 @@ import time
 from tqdm import tqdm
 
 from image_dataset import get_dataset, get_post_transformation
-from visualizer import plot_losses_and_metrics, plot_sample, save_model_architecture
+from visualizer import Visualizer
 
 # Parse input arguments
 parser = argparse.ArgumentParser(description='')
@@ -29,10 +27,6 @@ args = parser.parse_args()
 path = os.path.abspath(args.config_file)
 with open(path) as filepath:
     config = json.load(filepath)
-
-save_dir = os.path.join(config["Output"]["save_dir"], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
-os.mkdir(save_dir)
-shutil.copyfile(args.config_file, os.path.join(save_dir, 'config.json'))
 
 set_determinism(seed=0)
 
@@ -55,7 +49,9 @@ model = DynUNet(
     strides=(1,1,1),
     upsample_kernel_size=(1,1,1)
 ).to(device)
-save_model_architecture(model, save_dir)
+
+visualizer = Visualizer(config, args.config_file)
+visualizer.save_model_architecture(model, next(iter(train_loader))["image"].to(device=device))
 
 loss_function = DiceLoss(smooth_nr=0, smooth_dr=1e-5, squared_pred=True, to_onehot_y=False, sigmoid=True)
 optimizer = torch.optim.Adam(model.parameters(), 1e-4, weight_decay=1e-5)
@@ -87,23 +83,16 @@ def inference(input):
     else:
         return _compute(input)
 
-log_file_path = os.path.join(save_dir, 'metrics.csv')
-with open(log_file_path, 'w') as file:
-    writer = csv.writer(file)
-    writer.writerow(["Epoch", "Average Loss", "Val Mean Dice Score"])
-
 
 # TRAINING BEGINS HERE
 
 best_metric = -1
 best_metric_epoch = -1
-best_metrics_epochs_and_time = [[], [], []]
-epoch_loss_values = []
-metric_values = []
 
 total_start = time.time()
 epoch_tqdm = tqdm(range(max_epochs), desc="epoch")
 for epoch in epoch_tqdm:
+    epoch_metrics = dict()
     model.train()
     epoch_loss = 0
     step = 0
@@ -118,31 +107,47 @@ for epoch in epoch_tqdm:
         with torch.cuda.amp.autocast():
             outputs = model(inputs)
             loss = loss_function(outputs, labels)
+            outputs = [post_trans(i) for i in decollate_batch(outputs)]
+            dice_metric(y_pred=outputs, y=labels)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
         epoch_loss += loss.item()
         mini_batch_tqdm.set_description(f'train_loss: {loss.item():.4f}')
     lr_scheduler.step()
+
     epoch_loss /= step
-    epoch_loss_values.append(epoch_loss)
-    epoch_tqdm.set_description(f'average loss: {epoch_loss:.4f}')
+    metric_train = dice_metric.aggregate().item()
+    epoch_metrics["loss"] = {
+        "train_loss": epoch_loss
+    }
+    epoch_metrics["dice_score"] = {
+        "train_dice": metric_train
+    }
+    dice_metric.reset()
+    epoch_tqdm.set_description(f'avg train loss: {epoch_loss:.4f}')
 
     if (epoch + 1) % val_interval == 0:
         model.eval()
+        val_loss = 0
         with torch.no_grad():
+            step = 0
             for val_data in tqdm(val_loader, desc='Validation', leave=False):
+                step += 1
                 val_inputs, val_labels = (
                     val_data["image"].to(device).half(),
                     val_data["label"].to(device).half(),
                 )
                 val_outputs = inference(val_inputs)
+                with torch.cuda.amp.autocast():
+                    val_loss += loss_function(val_outputs, val_labels).item()
                 val_outputs = [post_trans(i) for i in decollate_batch(val_outputs)]
                 dice_metric(y_pred=val_outputs, y=val_labels)
                 dice_metric_batch(y_pred=val_outputs, y=val_labels)
 
             metric = dice_metric.aggregate().item()
-            metric_values.append(metric)
+            epoch_metrics["loss"]["val_loss"] = val_loss/step
+            epoch_metrics["dice_score"]["val_dice"] = metric
             metric_batch = dice_metric_batch.aggregate()
             dice_metric.reset()
             dice_metric_batch.reset()
@@ -150,23 +155,11 @@ for epoch in epoch_tqdm:
             if metric > best_metric:
                 best_metric = metric
                 best_metric_epoch = epoch + 1
-                best_metrics_epochs_and_time[0].append(best_metric)
-                best_metrics_epochs_and_time[1].append(best_metric_epoch)
-                best_metrics_epochs_and_time[2].append(time.time() - total_start)
-                torch.save(
-                    model.state_dict(),
-                    os.path.join(save_dir, "best_metric_model.pth"),
-                )
-            with open(log_file_path, 'a', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerow([epoch, epoch_loss, metric])
-            plot_losses_and_metrics(
-                epoch_loss_values=epoch_loss_values,
-                metric_values=metric_values,
-                val_interval=val_interval,
-                save_dir=save_dir
-            )
-            plot_sample(save_dir, val_inputs[0], val_outputs[0], val_labels[0], number=epoch)
+                visualizer.save_model(model)
+
+            visualizer.plot_losses_and_metrics(epoch_metrics, epoch)
+            visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], number=epoch)
+    visualizer.log_model_params(model, epoch)
 
 total_time = time.time() - total_start
 
