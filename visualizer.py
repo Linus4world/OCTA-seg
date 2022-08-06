@@ -33,11 +33,10 @@ class Visualizer():
 
     def prepare_log_file(self, record: dict[str, dict[str, float]]):
         titles = [title for v in record.values() for title in v]
-        titles.insert(0, "epoch")
         self.log_file_path = os.path.join(self.save_dir, 'metrics.csv')
         with open(self.log_file_path, 'w+') as file:
             writer = csv.writer(file)
-            writer.writerow(titles)
+            writer.writerow(["epoch", *titles])
 
     def plot_losses_and_metrics(self, metric_groups: dict[str, dict[str, float]], epoch: int):
         self.track_record.append(dict())
@@ -50,7 +49,7 @@ class Visualizer():
 
         with open(self.log_file_path, 'a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([epoch, [title for v in metric_groups.values() for title in v.values()]])
+            writer.writerow([epoch, *[title for v in metric_groups.values() for title in v.values()]])
 
         if self.save_to_disk:
             if self.loss_fig is None:
@@ -64,6 +63,7 @@ class Visualizer():
                 ax: plt.Axes = self.loss_fig_axes[i]
                 ax.set_title(title)
                 ax.set_xlabel("epoch")
+                # ax.set_ylim(0,1)
                 ax.plot(self.epochs, data_y)
                 ax.legend(list(record.keys()))
 
@@ -143,3 +143,33 @@ class Visualizer():
         for name, weight in model.named_parameters():
             self.tb.add_histogram(name,weight, epoch)
             self.tb.add_histogram(f'{name}.grad',weight.grad, epoch)
+
+
+def plot_sample(figure, save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor=None, number:int=None):
+    input = input.squeeze().detach().cpu().numpy()
+    input = (input * 255).astype(np.uint8)
+        
+    pred = pred.squeeze().detach().cpu().numpy()
+    pred = (pred * 255).astype(np.uint8)
+
+    if truth is not None:
+        truth = truth.squeeze().detach().cpu().numpy()
+        truth = (truth * 255).astype(np.uint8)
+
+    fig = plt.figure(figure.number)
+    plt.cla()
+    fig.axes[0].set_title("Input")
+    fig.axes[0].imshow(input)#, cmap='Greys')
+
+    fig.axes[1].set_title("Prediction")
+    fig.axes[1].imshow(pred)#, cmap='Greys')
+
+    if truth is not None:
+        fig.axes[2].set_title("Truth")
+        fig.axes[2].imshow(truth)#, cmap='Greys')
+
+    if number is not None:
+        number = '_'+str(number)
+    else:
+        number=''
+    plt.savefig(os.path.join(save_dir, f'sample{number}.png'), bbox_inches='tight')

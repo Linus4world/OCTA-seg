@@ -7,13 +7,13 @@ import datetime
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
 from monai.utils import set_determinism
-from monai.losses import DiceLoss
 from monai.metrics import DiceMetric
 from monai.inferers import sliding_window_inference
 
 from monai.networks.nets import DynUNet
 import time
 from tqdm import tqdm
+from cl_dice_loss import clDiceLoss
 
 from image_dataset import get_dataset, get_post_transformation
 from visualizer import Visualizer
@@ -40,20 +40,24 @@ VAL_AMP = config["General"]["amp"]
 
 device = torch.device(config["General"]["device"])
 
+
 # Model
+num_layers = config["General"]["num_layers"]
+kernel_size = config["General"]["kernel_size"]
 model = DynUNet(
     spatial_dims=2,
     in_channels=1,
     out_channels=1,
-    kernel_size=(3,3,3),
-    strides=(1,1,1),
-    upsample_kernel_size=(1,1,1)
+    kernel_size=(3, *[kernel_size]*num_layers,3),
+    strides=(1,*[2]*num_layers,1),
+    upsample_kernel_size=(1,*[2]*num_layers,1),
 ).to(device)
 
 visualizer = Visualizer(config, args.config_file)
 visualizer.save_model_architecture(model, next(iter(train_loader))["image"].to(device=device))
 
-loss_function = DiceLoss(smooth_nr=0, smooth_dr=1e-5, squared_pred=True, to_onehot_y=False, sigmoid=True)
+# loss_function = DiceLoss(smooth_nr=0, smooth_dr=1e-5, squared_pred=True, to_onehot_y=False, sigmoid=True)
+loss_function = clDiceLoss(alpha=config["Train"]["lambda_cl_dice"], sigmoid=True)
 optimizer = torch.optim.Adam(model.parameters(), 1e-4, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
 
@@ -158,7 +162,7 @@ for epoch in epoch_tqdm:
                 visualizer.save_model(model)
 
             visualizer.plot_losses_and_metrics(epoch_metrics, epoch)
-            visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], number=epoch)
+            visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], number= None if best_metric>metric else 'best')
     visualizer.log_model_params(model, epoch)
 
 total_time = time.time() - total_start

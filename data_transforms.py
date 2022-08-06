@@ -53,7 +53,8 @@ class AddRealNoised(MapTransform):
 
         N_gauss = self.get_gaussian_noise(img.shape, 0, 1)
         N_gauss = self.blur(N_gauss, (3,3)) * self.noise_layer
-        N_gauss = N_gauss - 0.5
+        N_gauss_center = random.uniform(-0.45,-0.7) #-0.5
+        N_gauss = N_gauss + N_gauss_center
 
         multi_level_noise = self.get_multi_level_noise(img.shape)
 
@@ -154,9 +155,9 @@ class ToDict(Transform):
     def __call__(self, data: torch.Tensor) -> dict[str, torch.Tensor]:
         return {"image": data, "label": torch.clone(data)}
 
-class ToTorch(Transform):
-    def __call__(self, data) -> torch.Tensor:
-        return torch.from_numpy(data).unsqueeze(0)
+class ToTensor(Transform):
+    def __call__(self, data: torch.Tensor) -> torch.Tensor:
+        return data.unsqueeze(0)
 
 class Resized(MapTransform):
     def __init__(self, keys: list[str], shape) -> None:
@@ -166,5 +167,5 @@ class Resized(MapTransform):
     def __call__(self, data) -> torch.Tensor:
         for key in self.keys:
             d = data[key]
-            data[key] = torch.nn.functional.interpolate(d.unsqueeze(0), size=self.shape, mode='bicubic').squeeze(0)
+            data[key] = torch.nn.functional.interpolate(d.unsqueeze(0), size=self.shape, mode='bilinear').squeeze(0)
         return data

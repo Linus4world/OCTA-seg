@@ -1,7 +1,10 @@
 {
     "General": {
         "amp": true,
-        "device": "cuda:0"
+        "device": "cuda:0",
+        "num_layers": 3,
+        "kernel_size": 3,
+        "dropout": 0
     },
     "Data": {
         "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/",
@@ -9,10 +12,11 @@
         "real_noise_path": "/home/lkreitner/arterial-tree-generation/dataset_deep_02_08_22" 
     },
     "Train": {
-        "epochs": 20,
+        "epochs": 60,
         "val_interval": 1,
         "batch_size": 4,
-        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train/"
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train/",
+        "lambda_cl_dice": 0
     },
     "Validation": {
         "batch_size": 4,
@@ -21,10 +25,10 @@
     },
     "Test": {
         "batch_size": 1,
-        "save_dir": "/home/lkreitner/OCTA-seg/results/20220726_173046/test/",
+        "save_dir": "/home/lkreitner/OCTA-seg/results/20220805_122413/test/",
         "dataset_path": "/home/shared/Data/DRAC22/C. Diabetic Retinopathy Grading/1. Original Images/",
-        "model_path": "/home/lkreitner/OCTA-seg/results/20220726_173046/best_metric_model.pth",
-        "num_samples": 3,
+        "model_path": "/home/lkreitner/OCTA-seg/results/20220805_122413/best_metric_model.pth",
+        "num_samples": 10,
         "save_images": false
     },
     "Output": {
