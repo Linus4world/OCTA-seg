@@ -3,8 +3,10 @@ import torch.nn.functional as F
 from monai.losses import DiceLoss
 
 
-def soft_skel(img):
-
+def soft_skel_v2(img):
+    """
+    Novel method by Martin Menten for skeleton extraction based on convolution. Resulting skeleton is smoother and is better at maintaining the topology.
+    """
     # Kernels to calculate the maps defining the existence of the 8 neighbors
     k2 = img.new([[0, 1, 0],
                     [0, 0, 0],
@@ -130,7 +132,11 @@ def soft_open(img):
     return soft_dilate(soft_erode(img))
 
 
-def soft_skel_old(img, iter_=25):
+def soft_skel_v1(img, iter_=25):
+    """
+    Original soft skeleton extraction based on max pooling as described in
+    [clDice - a Novel Topology-Preserving Loss Function for Tubular Structure Segmentation](https://openaccess.thecvf.com/content/CVPR2021/papers/Shit_clDice_-_A_Novel_Topology-Preserving_Loss_Function_for_Tubular_Structure_CVPR_2021_paper.pdf)
+    """
     img1  =  soft_open(img)
     skel  =  F.relu(img-img1)
     for j in range(iter_):
@@ -141,8 +147,18 @@ def soft_skel_old(img, iter_=25):
     return skel
 
 class clDiceLoss():
-
+    """
+    The clDiceLoss is a combination of the classical Dice loss and the centerline Dice loss as described in
+    [clDice - a Novel Topology-Preserving Loss Function for Tubular Structure Segmentation](https://openaccess.thecvf.com/content/CVPR2021/papers/Shit_clDice_-_A_Novel_Topology-Preserving_Loss_Function_for_Tubular_Structure_CVPR_2021_paper.pdf).
+    It aims to better preserve the topology of a vessel system.
+    """
     def __init__(self, alpha=0.5, sigmoid=False):
+        """
+        Create a clDiceLoss instance.
+
+        Paramters:
+            - alpha: How to weight the clDice to the classical dice. Alpha=0 means to only use the classical Dice loss.
+        """
         self.alpha = alpha
         self.sigmoid = sigmoid
         self.dice_loss = DiceLoss(smooth_nr=0, smooth_dr=1e-5, squared_pred=True, to_onehot_y=False, sigmoid=False)
@@ -154,8 +170,8 @@ class clDiceLoss():
         if self.sigmoid:
             predictions = torch.sigmoid(predictions)
         if self.alpha > 0:
-            skel_pred = soft_skel(predictions)
-            skel_true = soft_skel(target)
+            skel_pred = soft_skel_v2(predictions)
+            skel_true = soft_skel_v2(target)
             tprec = (torch.sum(torch.multiply(skel_pred, target)[:,...]) + 1e-8) / (torch.sum(skel_pred[:,...]) + 1e-8)    
             tsens = (torch.sum(torch.multiply(skel_true, predictions)[:,...]) + 1e-8) / (torch.sum(skel_true[:,...]) + 1e-8)    
             cl_dice_loss = 1.0 - 2.0 * (tprec*tsens) / (tprec+tsens)

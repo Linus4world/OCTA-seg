@@ -7,9 +7,16 @@ from torch.utils.tensorboard import SummaryWriter
 import datetime
 import csv
 import shutil
+import nibabel as nib
 
 class Visualizer():
+    """
+    The Visualizer takes care of all output related functionality.
+    """
     def __init__(self, config: dict, config_path) -> None:
+        """
+        Create a visualizer class with the given config that takes care of image and metric saving, as well as the interaction with tensorboard.
+        """
         self.config = config
         self.save_to_disk: bool = config["Output"]["save_to_disk"]
         self.save_to_tensorboard: bool = config["Output"]["save_to_tensorboard"]
@@ -31,7 +38,7 @@ class Visualizer():
         self.epochs = []
         self.log_file_path = None
 
-    def prepare_log_file(self, record: dict[str, dict[str, float]]):
+    def _prepare_log_file(self, record: dict[str, dict[str, float]]):
         titles = [title for v in record.values() for title in v]
         self.log_file_path = os.path.join(self.save_dir, 'metrics.csv')
         with open(self.log_file_path, 'w+') as file:
@@ -39,9 +46,19 @@ class Visualizer():
             writer.writerow(["epoch", *titles])
 
     def plot_losses_and_metrics(self, metric_groups: dict[str, dict[str, float]], epoch: int):
+        """
+        Plot the given losses and metrics.
+        If save_to_disk is true, create a matpyplot figure.
+        If save_to_tensorboard add the scalars to the current tensorboard
+
+        Parameters:
+            - metric_groups: A dictionary containing the loss and metric groups that are being plottet together in on graph.
+            Each entry is a dictionary all metric labels and values of the cureent step.
+            - epoch: The current epoch / step
+        """
         self.track_record.append(dict())
         if self.log_file_path is None:
-            self.prepare_log_file(metric_groups)
+            self._prepare_log_file(metric_groups)
 
         for title, metrics in metric_groups.items():
             self.track_record[-1][title] = metrics
@@ -75,6 +92,11 @@ class Visualizer():
                 self.tb.add_scalars(title, record, epoch+1)
 
     def plot_sample(self,input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor = None, number: int = None):
+        """
+        Create a 3x1 (or 2x1 if no truth tensor is supplied) grid from the given 2D image tensors and save the image with the given number as label.
+        If save_to_disk is true, create a matpyplot figure.
+        If save_to_tensorboard add the images to the current tensorboard
+        """
         input = input.squeeze().detach().cpu().numpy()
         input = (input * 255).astype(np.uint8)
         
@@ -146,6 +168,9 @@ class Visualizer():
 
 
 def plot_sample(figure, save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor=None, number:int=None):
+    """
+    Create a 3x1 (or 2x1 if no truth tensor is supplied) grid from the given 2D image tensors and save the image with the given number as label
+    """
     input = input.squeeze().detach().cpu().numpy()
     input = (input * 255).astype(np.uint8)
         
@@ -173,3 +198,12 @@ def plot_sample(figure, save_dir: str, input: torch.Tensor, pred: torch.Tensor, 
     else:
         number=''
     plt.savefig(os.path.join(save_dir, f'sample{number}.png'), bbox_inches='tight')
+
+def create_slim_3D_volume(img_2D_proj: torch.Tensor, save_dir: str, number: int = None):
+    """
+    Create a 3D nib file from a 2D image by adding a zero layers on each side of the input in a third dimension.
+    """
+    a = img_2D_proj.cpu().numpy().squeeze() * 255
+    a = np.stack([np.zeros_like(a), a, np.zeros_like(a)], axis=-1)
+    img_nii = nib.Nifti1Image(a.astype(np.uint8), np.eye(4))
+    nib.save(img_nii, os.path.join(save_dir, f'sample{number}.nii'))

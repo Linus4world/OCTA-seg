@@ -3,8 +3,7 @@
         "amp": true,
         "device": "cuda:0",
         "num_layers": 3,
-        "kernel_size": 3,
-        "dropout": 0
+        "kernel_size": 3
     },
     "Data": {
         "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/",

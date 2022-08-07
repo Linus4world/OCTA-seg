@@ -3,7 +3,6 @@ import torch
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
-from torchvision.transforms import GaussianBlur
 
 noise_layer_path = "/home/lkreitner/arterial-tree-generation/geometries/slab_noise.npy"
 noise_layer = torch.from_numpy(np.load(noise_layer_path)).to(dtype=torch.float32).unsqueeze(0)
@@ -27,7 +26,6 @@ def blur(img, kernel_size=(3,3)):
     blurred_img = blurred_img - blurred_img.min()
     blurred_img = (blurred_img / blurred_img.max())
     return blurred_img
-    # return GaussianBlur(kernel_size=kernel_size)(img)
 
 def getGaussianNoise(shape, mean=0, std=1):
     return torch.randn(shape)*std+mean
@@ -98,10 +96,4 @@ a_noise = (t_noise.numpy()*255).astype(np.uint8).squeeze()
 plt.figure(figsize=(12,12))
 plt.imshow(a_noise)
 plt.savefig("test2.png", bbox_inches='tight')
-
-# img = Image.open("/home/lkreitner/OCTA-seg/datasets/DRAC22/train/7.png")
-# a = np.array(img)
-# plt.cla()
-# plt.imshow(a)
-# plt.savefig("test1.png", bbox_inches='tight')
 
