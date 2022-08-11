@@ -1,10 +1,14 @@
 from monai.data import DataLoader, Dataset
-from monai.transforms import Activations, AsDiscrete, Compose, LoadImage, ScaleIntensity, RandFlipd, Rotate, Flip, RandScaleCropd, RandRotated, AsDiscreted, AddChannel
+from monai.transforms import *
 from data_transforms import AddRealNoised, ToDict, Resized, AddLineArtifact
 import os
-from numpy import deg2rad
+from numpy import deg2rad, array
+import csv
+import torch
 
 from monai.data.meta_obj import set_track_meta
+
+from metrics import Task
 set_track_meta(False)
 
 def get_custom_file_paths(folder, name):
@@ -17,50 +21,69 @@ def get_custom_file_paths(folder, name):
                 image_file_paths.append(file_path)
     return image_file_paths
 
-def _get_transformation(config, phase: str) -> Compose:
+def _get_transformation(config, task: Task, phase: str) -> Compose:
     """
     Create and return the data transformations for 2D segmentation images the given phase.
     """
-    if phase == "train":
-        return Compose([
-            LoadImage(image_only=True),
-            ScaleIntensity(0, 1),
-            AddChannel(),
-            Rotate(deg2rad(270)),
-            Flip(0),
-            ToDict(),
-            # AddRandomNoised(noise_layer_path=config["Data"]["noise_map_path"]),
-            AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
-            RandFlipd(keys=["image", "label"], prob=0.1, spatial_axis=0),
-            RandFlipd(keys=["image", "label"], prob=0.1, spatial_axis=1),
-            RandScaleCropd(keys=["image", "label"], roi_scale=0.5, max_roi_scale=1, random_center=True, random_size=True),
-            RandRotated(keys=["image", "label"], range_x=10, range_y=10),
-            Resized(keys=["image", "label"], shape=(1024,1024)),
-            AddLineArtifact(keys=["image"]),
-            AsDiscreted(keys=["label"],threshold=0.1)
-        ])
-    elif phase == "validation":
-        return Compose([
-            LoadImage(image_only=True),
-            ScaleIntensity(0, 1),
-            AddChannel(),
-            Rotate(deg2rad(270)),
-            Flip(0),
-            ToDict(),
-            AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
-            RandScaleCropd(keys=["image", "label"], roi_scale=0.3, max_roi_scale=1, random_center=True, random_size=True),
-            Resized(keys=["image", "label"], shape=(1024,1024)),
-            AddLineArtifact(keys=["image"]),
-            AsDiscreted(keys=["label"],threshold=0.1)
-        ])
+    if task == Task.VESSEL_SEGMENTATION.value:
+        if phase == "train":
+            return Compose([
+                LoadImage(image_only=True),
+                ScaleIntensity(0, 1),
+                AddChannel(),
+                Rotate(deg2rad(270)),
+                Flip(0),
+                ToDict(),
+                # AddRandomNoised(noise_layer_path=config["Data"]["noise_map_path"]),
+                AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
+                RandFlipd(keys=["image", "label"], prob=0.1, spatial_axis=0),
+                RandFlipd(keys=["image", "label"], prob=0.1, spatial_axis=1),
+                RandScaleCropd(keys=["image", "label"], roi_scale=0.5, max_roi_scale=1, random_center=True, random_size=True),
+                RandRotated(keys=["image", "label"], range_x=10, range_y=10),
+                Resized(keys=["image", "label"], shape=(1024,1024)),
+                AddLineArtifact(keys=["image"]),
+                AsDiscreted(keys=["label"],threshold=0.1)
+            ])
+        elif phase == "validation":
+            return Compose([
+                LoadImage(image_only=True),
+                ScaleIntensity(0, 1),
+                AddChannel(),
+                Rotate(deg2rad(270)),
+                Flip(0),
+                ToDict(),
+                AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
+                RandScaleCropd(keys=["image", "label"], roi_scale=0.3, max_roi_scale=1, random_center=True, random_size=True),
+                Resized(keys=["image", "label"], shape=(1024,1024)),
+                AddLineArtifact(keys=["image"]),
+                AsDiscreted(keys=["label"],threshold=0.1)
+            ])
+        else:
+            return Compose([
+                LoadImage(image_only=True),
+                ScaleIntensity(0, 1),
+                AddChannel(),
+                Rotate(deg2rad(270)),
+                Flip(0)
+            ])
     else:
-        return Compose([
-            LoadImage(image_only=True),
-            ScaleIntensity(0, 1),
-            AddChannel(),
-            Rotate(deg2rad(270)),
-            Flip(0)
-        ])
+        if phase == "train":
+            return Compose([
+                LoadImaged(keys=["img"], ensure_channel_first=True, image_only=True),
+                ScaleIntensityd(keys=["img"], minv=0, maxv=1),
+                RandFlipd(keys=["img"], prob=0.1, spatial_axis=[0, 1]),
+                RandRotate90d(keys=["img"], prob=0.8, spatial_axes=[0, 1]),
+            ])
+        elif phase == "validation":
+            return Compose([
+                LoadImaged(keys=["img"], ensure_channel_first=True, image_only=True),
+                ScaleIntensityd(keys=["img"], minv=0, maxv=1),
+            ])
+        else:
+            return Compose([
+                LoadImaged(keys=["img"], ensure_channel_first=True, image_only=True),
+                ScaleIntensityd(keys=["img"], minv=0, maxv=1),
+            ])
 
 def get_post_transformation():
     """
@@ -72,7 +95,29 @@ def get_dataset(config: dict, phase: str) -> DataLoader:
     """
     Creates and return the dataloader for the given phase.
     """
-    transform = _get_transformation(config, phase)
-    train_set = Dataset(get_custom_file_paths(config[phase.capitalize()]["dataset_path"], '.png'), transform=transform)
-    loader = DataLoader(train_set, batch_size=config[phase.capitalize()]["batch_size"], shuffle=phase=="train", num_workers=4)
+    task = config["General"]["task"]
+    transform = _get_transformation(config, task, phase)
+
+    data_path = config["Data"]["dataset_images"]
+    if phase == "test":
+        data_path = config["Test"]["dataset_images"]
+
+    with open(config[phase.capitalize()]["dataset_path"], 'r') as f:
+        lines = f.readlines()
+        indices = [int(line.rstrip()) for line in lines]
+    if task == Task.VESSEL_SEGMENTATION.value:
+        image_paths = get_custom_file_paths(*data_path)
+        image_paths = list(array(image_paths)[indices])
+        train_files = image_paths
+    else:
+        reader = csv.reader(open(config["Data"]["dataset_labels"], 'r'))
+        next(reader)
+        labels = [int(v) for k, v in reader]
+        labels = list(array(labels)[indices])
+
+        image_paths = get_custom_file_paths(*data_path)
+        image_paths = list(array(image_paths)[indices])
+        train_files = [{"img": img, "label": label} for img, label in zip(image_paths, labels)]
+    data_set = Dataset(train_files, transform=transform)
+    loader = DataLoader(data_set, batch_size=config[phase.capitalize()]["batch_size"], shuffle=phase=="train", num_workers=4, pin_memory=torch.cuda.is_available())
     return loader

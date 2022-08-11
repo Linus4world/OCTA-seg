@@ -39,7 +39,6 @@ visualizer = Visualizer(config, args.config_file)
 
 train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')
-test_loader = get_dataset(config, 'test')
 post_trans = get_post_transformation()
 
 # Model

@@ -7,7 +7,7 @@
         "task": "ves-seg"
     },
     "Data": {
-        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/",
+        "dataset_images": ["/home/lkreitner/arterial-tree-generation/dataset_22_07_22/", "gray_z.png"],
         "noise_map_path": "/home/lkreitner/arterial-tree-generation/geometries/slab_noise.npy",
         "real_noise_path": "/home/lkreitner/arterial-tree-generation/dataset_deep_02_08_22" 
     },
@@ -15,18 +15,19 @@
         "epochs": 60,
         "val_interval": 1,
         "batch_size": 4,
-        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train/",
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train.txt",
         "lambda_cl_dice": 0
     },
     "Validation": {
         "batch_size": 4,
-        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/val/",
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/val.txt",
         "model_path": "/home/lkreitner/OCTA-seg/results/20220725_160930/best_metric_model.pth"
     },
     "Test": {
         "batch_size": 1,
         "save_dir": "/home/lkreitner/OCTA-seg/results/20220805_154042/test/",
-        "dataset_path": "/home/shared/Data/DRAC22/C. Diabetic Retinopathy Grading/1. Original Images/",
+        "dataset_images": ["/home/shared/Data/DRAC22/C. Diabetic Retinopathy Grading/1. Original Images/", ".png"],
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/DRAC_C/val.txt",
         "model_path": "/home/lkreitner/OCTA-seg/results/20220805_154042/best_metric_model.pth",
         "num_samples": 10,
         "save_images": false
