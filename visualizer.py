@@ -6,8 +6,8 @@ from prettytable import PrettyTable
 from torch.utils.tensorboard import SummaryWriter
 import datetime
 import csv
-import shutil
 import nibabel as nib
+import json
 
 class Visualizer():
     """
@@ -23,8 +23,11 @@ class Visualizer():
 
         self.save_dir = os.path.join(config["Output"]["save_dir"], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
         os.mkdir(self.save_dir)
-        shutil.copyfile(config_path, os.path.join(self.save_dir, 'config.json'))
         config["Output"]["save_dir"] = self.save_dir
+        config["Test"]["save_dir"] = os.path.join(self.save_dir, 'test/')
+        config["Test"]["model_path"] = os.path.join(self.save_dir, 'best_metric_model.pth')
+        with open(os.path.join(self.save_dir, 'config.json'), 'w') as f:
+            json.dump(config, f, ensure_ascii=False, indent=4)
 
         if self.save_to_disk:
             self.loss_fig = None

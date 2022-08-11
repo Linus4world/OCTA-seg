@@ -6,9 +6,34 @@ import math
 import random
 from PIL import Image
 
+class AddLineArtifact(MapTransform):
+    """
+    Generates a blurry horizontal line with is a common image artifact in OCTA images 
+    """
+    def __init__(self, keys: tuple[str]) -> None:
+        """
+        Generates a blurry horizontal line with is a common image artifact in OCTA images
+        
+        Parameters:
+            - keys: List of dict keys where the artifact should be applied to
+        """
+        super().__init__(keys, False)
+        self.c = torch.tensor([[0.0250, 0.0750, 0.3750, 0.8750, 1.0000, 0.8750, 0.3750, 0.0750, 0.0250]]).unsqueeze(-1)
+
+    def __call__(self, data):
+        for key in self.keys:
+            img = data[key]
+            start = random.randint(0,img.shape[-2]-9)
+            s = slice(start,start+9)
+            line = img[:,s,:].unsqueeze(0)
+            line = torch.conv2d(line, weight=torch.full((1,1,7,7), 1/50), padding="same")
+            img[:,s,:] = img[:,s,:]*(1-self.c) + self.c * line[0,:,:,:]
+            data[key] = img
+        return data
+
 class AddRealNoised(MapTransform):
     """
-        Generate Background signal caused by capillary vessels using simulated deep vascular complex (DVC) maps
+    Generate Background signal caused by capillary vessels using simulated deep vascular complex (DVC) maps
     """
     def __init__(self, keys: list[str], noise_paths: list[str], noise_layer_path: str) -> None:
         """
@@ -70,7 +95,7 @@ class AddRealNoised(MapTransform):
         N = torch.conv2d(N, kernel, padding='same')
         return N
 
-    def add_noise(self, img: torch.Tensor, lambda_img=0.9, lambda_N_real=0.9, lambda_N_gauss=1.2):
+    def add_noise(self, img: torch.Tensor, lambda_img=1, lambda_N_real=0.9, lambda_N_gauss=1.2):
         """
         Adds noise to the given image tensor by combining gaussian white noise, real DVC noise maps and bias fields.
         The final image output is given by:
@@ -96,9 +121,8 @@ class AddRealNoised(MapTransform):
 
         multi_level_noise = self._get_multi_level_noise(img.shape)
 
-        img = lambda_img * img
-
         img = self._blur(img, (3,3)) * self.noise_layer
+        img = random.uniform(lambda_img*0.8,lambda_img*1.1) * img
         img = torch.maximum(img, N_real * lambda_N_real * multi_level_noise)
 
         img = img + N_gauss*lambda_N_gauss

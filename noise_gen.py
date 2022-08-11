@@ -55,7 +55,7 @@ def addNoise(img, noise_layer):
 
     N_gauss = getGaussianNoise(img.shape, 0, 1)
     N_gauss = blur(N_gauss, (3,3)) * noise_layer
-    N_gauss = N_gauss - 0.5
+    N_gauss = N_gauss - 0.6
 
     multi_level_noise = get_multi_level_noise(img.shape)
 
@@ -65,7 +65,6 @@ def addNoise(img, noise_layer):
     lambda_N_gauss = 1.2
     # N_gauss[img>0]
 
-    img = lambda_img * img
 
     # b = blur(img, kernel_size=(127,127))
     # b = (b-b.mean()) / (b-b.mean()).std()
@@ -77,10 +76,19 @@ def addNoise(img, noise_layer):
     # b = b*np.clip(multi_level_noise,0,1)
 
     img = blur(img, (3,3)) * noise_layer
+    img = lambda_img * img
     img = np.maximum(img, N_real * lambda_N_real * multi_level_noise)# * b)
 
     img = img + N_gauss*lambda_N_gauss
 
+    s = slice(508,517)
+    c = torch.tensor([[0.01, 0.03, 0.15, 0.35, 0.4, 0.35, 0.15, 0.03, 0.01]]).unsqueeze(-1)*2.5
+    line = img[:,s,:].unsqueeze(0)
+    line = torch.conv2d(line, weight=torch.full((1,1,7,7), 1/50), padding="same")
+    img[:,s,:] = img[:,s,:]*(1-c) + c * line[0,:,:,:]
+    # line = img[:,509:516,:].unsqueeze(0)
+    # line = torch.nn.functional.interpolate(torch.nn.functional.interpolate(line, (5,256), mode="bilinear"), line.shape[-2:], mode="bilinear")
+    # img[:,509:516,:] = line[0,:,:,:]
     return np.clip(img, 0, 1)
 
     

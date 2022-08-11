@@ -1,3 +1,4 @@
+import argparse
 import json
 import torch
 import os
@@ -12,8 +13,13 @@ from image_dataset import get_dataset, get_post_transformation
 
 from visualizer import create_slim_3D_volume, plot_sample
 
+# Parse input arguments
+parser = argparse.ArgumentParser(description='')
+parser.add_argument('--config_file', type=str, required=True)
+args = parser.parse_args()
+
 # Read config file
-path = os.path.abspath("/home/lkreitner/OCTA-seg/configs/config.json")
+path = os.path.abspath(args.config_file)
 with open(path) as filepath:
     config = json.load(filepath)
 
@@ -58,5 +64,5 @@ with torch.no_grad():
         else:
             val_outputs = model(val_inputs)
         val_outputs = [post_trans(i).cpu() for i in decollate_batch(val_outputs)]
-        # plot_sample(fig, config["Test"]["save_dir"], val_inputs[0], val_outputs[0], number=num_sample)
+        plot_sample(fig, config["Test"]["save_dir"], val_inputs[0], val_outputs[0], number=num_sample)
         create_slim_3D_volume(val_outputs[0], config["Test"]["save_dir"], number=num_sample)

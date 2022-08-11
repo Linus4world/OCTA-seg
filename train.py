@@ -7,7 +7,7 @@ import datetime
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
 from monai.utils import set_determinism
-from monai.metrics import DiceMetric
+from monai.metrics import DiceMetric, MeanIoU
 from monai.inferers import sliding_window_inference
 
 from monai.networks.nets import DynUNet
@@ -62,7 +62,7 @@ optimizer = torch.optim.Adam(model.parameters(), 1e-4, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
 
 dice_metric = DiceMetric(include_background=True, reduction="mean")
-dice_metric_batch = DiceMetric(include_background=True, reduction="mean_batch")
+mIoU_metric = MeanIoU(include_background=True, reduction="mean")
 
 post_trans = get_post_transformation()
 
@@ -113,6 +113,7 @@ for epoch in epoch_tqdm:
             loss = loss_function(outputs, labels)
             outputs = [post_trans(i) for i in decollate_batch(outputs)]
             dice_metric(y_pred=outputs, y=labels)
+            mIoU_metric(y_pred=outputs, y=labels)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
@@ -122,13 +123,16 @@ for epoch in epoch_tqdm:
 
     epoch_loss /= step
     metric_train = dice_metric.aggregate().item()
+    mIoU_metric_train = mIoU_metric.aggregate().item()
     epoch_metrics["loss"] = {
         "train_loss": epoch_loss
     }
-    epoch_metrics["dice_score"] = {
-        "train_dice": metric_train
+    epoch_metrics["metric"] = {
+        "train_dice": metric_train,
+        "train_mIoU": mIoU_metric_train
     }
     dice_metric.reset()
+    mIoU_metric.reset()
     epoch_tqdm.set_description(f'avg train loss: {epoch_loss:.4f}')
 
     if (epoch + 1) % val_interval == 0:
@@ -147,22 +151,23 @@ for epoch in epoch_tqdm:
                     val_loss += loss_function(val_outputs, val_labels).item()
                 val_outputs = [post_trans(i) for i in decollate_batch(val_outputs)]
                 dice_metric(y_pred=val_outputs, y=val_labels)
-                dice_metric_batch(y_pred=val_outputs, y=val_labels)
+                mIoU_metric(y_pred=val_outputs, y=val_labels)
 
-            metric = dice_metric.aggregate().item()
+            metric_val = dice_metric.aggregate().item()
+            mIoU_metric_val= mIoU_metric.aggregate().item()
             epoch_metrics["loss"]["val_loss"] = val_loss/step
-            epoch_metrics["dice_score"]["val_dice"] = metric
-            metric_batch = dice_metric_batch.aggregate()
+            epoch_metrics["metric"]["val_dice"] = metric_val
+            epoch_metrics["metric"]["val_mIoU"] = mIoU_metric_val
             dice_metric.reset()
-            dice_metric_batch.reset()
+            mIoU_metric.reset()
 
-            if metric > best_metric:
-                best_metric = metric
+            if metric_val > best_metric:
+                best_metric = metric_val
                 best_metric_epoch = epoch + 1
                 visualizer.save_model(model)
 
             visualizer.plot_losses_and_metrics(epoch_metrics, epoch)
-            visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], number= None if best_metric>metric else 'best')
+            visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], number= None if best_metric>metric_val else 'best')
     visualizer.log_model_params(model, epoch)
 
 total_time = time.time() - total_start
