@@ -69,27 +69,33 @@ def _get_transformation(config, task: Task, phase: str) -> Compose:
     else:
         if phase == "train":
             return Compose([
-                LoadImaged(keys=["img"], ensure_channel_first=True, image_only=True),
-                ScaleIntensityd(keys=["img"], minv=0, maxv=1),
-                RandFlipd(keys=["img"], prob=0.1, spatial_axis=[0, 1]),
-                RandRotate90d(keys=["img"], prob=0.8, spatial_axes=[0, 1]),
+                LoadImaged(keys=["image"], image_only=True),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                AddChanneld(keys=["image"]),
+                RandFlipd(keys=["image"], prob=0.1, spatial_axis=[0, 1]),
+                RandRotated(keys=["image"], range_x=10, range_y=10),
             ])
         elif phase == "validation":
             return Compose([
-                LoadImaged(keys=["img"], ensure_channel_first=True, image_only=True),
-                ScaleIntensityd(keys=["img"], minv=0, maxv=1),
+                LoadImaged(keys=["image"], image_only=True),
+                AddChanneld(keys=["image"]),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
             ])
         else:
             return Compose([
-                LoadImaged(keys=["img"], ensure_channel_first=True, image_only=True),
-                ScaleIntensityd(keys=["img"], minv=0, maxv=1),
+                LoadImaged(keys=["image"], image_only=True),
+                AddChanneld(keys=["image"]),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
             ])
 
-def get_post_transformation():
+def get_post_transformation(task: Task, num_classes=2) -> tuple[Compose]:
     """
     Create and return the data transformation that is applied to the model prediction before inference.
     """
-    return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
+    if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([])
+    else:
+        return Compose([Activations(softmax=True)]), Compose([AsDiscrete(to_onehot=num_classes)])
 
 def get_dataset(config: dict, phase: str) -> DataLoader:
     """
@@ -117,7 +123,7 @@ def get_dataset(config: dict, phase: str) -> DataLoader:
 
         image_paths = get_custom_file_paths(*data_path)
         image_paths = list(array(image_paths)[indices])
-        train_files = [{"img": img, "label": label} for img, label in zip(image_paths, labels)]
+        train_files = [{"image": img, "label": label} for img, label in zip(image_paths, labels)]
     data_set = Dataset(train_files, transform=transform)
     loader = DataLoader(data_set, batch_size=config[phase.capitalize()]["batch_size"], shuffle=phase=="train", num_workers=4, pin_memory=torch.cuda.is_available())
     return loader

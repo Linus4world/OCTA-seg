@@ -9,7 +9,8 @@
     "Data": {
         "dataset_images": ["/home/lkreitner/arterial-tree-generation/dataset_22_07_22/", "gray_z.png"],
         "noise_map_path": "/home/lkreitner/arterial-tree-generation/geometries/slab_noise.npy",
-        "real_noise_path": "/home/lkreitner/arterial-tree-generation/dataset_deep_02_08_22" 
+        "real_noise_path": "/home/lkreitner/arterial-tree-generation/dataset_deep_02_08_22",
+        "num_classes": 1
     },
     "Train": {
         "epochs": 60,

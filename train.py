@@ -7,15 +7,12 @@ import datetime
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
 from monai.utils import set_determinism
-from monai.metrics import DiceMetric, MeanIoU
-
-from monai.networks.nets import DynUNet
+from monai.networks.nets import DynUNet, DenseNet121
 import time
 from tqdm import tqdm
-from cl_dice_loss import clDiceLoss
 
 from image_dataset import get_dataset, get_post_transformation
-from metrics import MetricsManager, Task
+from metrics import MetricsManager, Task, get_loss_function
 from visualizer import Visualizer
 
 # Parse input arguments
@@ -39,22 +36,25 @@ visualizer = Visualizer(config, args.config_file)
 
 train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')
-post_trans = get_post_transformation()
+post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
 # Model
 num_layers = config["General"]["num_layers"]
 kernel_size = config["General"]["kernel_size"]
-model = DynUNet(
-    spatial_dims=2,
-    in_channels=1,
-    out_channels=1,
-    kernel_size=(3, *[kernel_size]*num_layers,3),
-    strides=(1,*[2]*num_layers,1),
-    upsample_kernel_size=(1,*[2]*num_layers,1),
-).to(device)
+if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+    model = DynUNet(
+        spatial_dims=2,
+        in_channels=1,
+        out_channels=config["Data"]["num_classes"],
+        kernel_size=(3, *[kernel_size]*num_layers,3),
+        strides=(1,*[2]*num_layers,1),
+        upsample_kernel_size=(1,*[2]*num_layers,1),
+    ).to(device)
+else:
+    model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=config["Data"]["num_classes"]).to(device)
 visualizer.save_model_architecture(model, next(iter(train_loader))["image"].to(device=device))
 
-loss_function = clDiceLoss(alpha=config["Train"]["lambda_cl_dice"], sigmoid=True)
+loss_function = get_loss_function(task, config)
 optimizer = torch.optim.Adam(model.parameters(), 1e-4, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
 metrics = MetricsManager(task)
@@ -84,8 +84,9 @@ for epoch in epoch_tqdm:
         optimizer.zero_grad()
         with torch.cuda.amp.autocast():
             outputs = model(inputs)
-            loss = loss_function(outputs, labels)
-            outputs = [post_trans(i) for i in decollate_batch(outputs)]
+            loss = loss_function(outputs, labels.long())
+            labels = [post_label(torch.tensor(i)) for i in decollate_batch(labels)]
+            outputs = [post_pred(i) for i in decollate_batch(outputs)]
             metrics(y_pred=outputs, y=labels)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -114,9 +115,10 @@ for epoch in epoch_tqdm:
                 )
                 with torch.cuda.amp.autocast():
                     val_outputs = model(val_inputs)
-                    val_loss += loss_function(val_outputs, val_labels).item()
-                val_outputs = [post_trans(i) for i in decollate_batch(val_outputs)]
-                metrics(y_pred=val_outputs, y=val_labels)
+                    val_loss += loss_function(val_outputs, val_labels.long()).item()
+                    val_labels = [post_label(torch.tensor(i)) for i in decollate_batch(val_labels)]
+                    val_outputs = [post_pred(i) for i in decollate_batch(val_outputs)]
+                    metrics(y_pred=val_outputs, y=val_labels)
 
             epoch_metrics["loss"]["val_loss"] = val_loss/step
             epoch_metrics["metric"].update(metrics.aggregate_and_reset(prefix="val"))
@@ -129,7 +131,8 @@ for epoch in epoch_tqdm:
                 visualizer.save_model(model)
 
             visualizer.plot_losses_and_metrics(epoch_metrics, epoch)
-            visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], number= None if best_metric>metric_comp else 'best')
+            if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+                visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], number= None if best_metric>metric_comp else 'best')
     visualizer.log_model_params(model, epoch)
 
 total_time = time.time() - total_start

@@ -3,7 +3,8 @@ from enum import Enum
 
 import numpy as np
 import torch
-from monai.metrics import DiceMetric, MeanIoU, ROCAUCMetric, CumulativeIterationMetric
+from monai.metrics import DiceMetric, MeanIoU, ROCAUCMetric
+from cl_dice_loss import clDiceLoss
 
 
 class Task(Enum):
@@ -71,11 +72,12 @@ class QuadraticWeightedKappa:
         self.items = []
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> None:
-        self.items.append(quadratic_weighted_kappa(y,y_pred))
+        for i in range(len(y_pred)):
+            self.items.append(quadratic_weighted_kappa(torch.round(y[i]).detach().cpu().numpy(),torch.round(y_pred[i]).detach().cpu().numpy()))
 
     def aggregate(self) -> torch.Tensor:
         if len(self.items) > 0:
-            return torch.Tensor(sum(self.items)/len((self.items)))
+            return torch.tensor(sum(self.items)/len((self.items)))
         else:
             return torch.zeros(1)
 
@@ -110,3 +112,9 @@ class MetricsManager():
 
     def get_comp_metric(self, prefix: str):
         return f'{prefix}_{self.comp}'
+
+def get_loss_function(task: Task, config: dict):
+    if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+        return clDiceLoss(alpha=config["Train"]["lambda_cl_dice"], sigmoid=True)
+    else:
+        return torch.nn.CrossEntropyLoss()
