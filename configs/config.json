@@ -3,7 +3,8 @@
         "amp": true,
         "device": "cuda:0",
         "num_layers": 3,
-        "kernel_size": 3
+        "kernel_size": 3,
+        "task": "ves-seg"
     },
     "Data": {
         "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/",
@@ -24,9 +25,9 @@
     },
     "Test": {
         "batch_size": 1,
-        "save_dir": "/home/lkreitner/OCTA-seg/results/20220805_122413/test/",
+        "save_dir": "/home/lkreitner/OCTA-seg/results/20220805_154042/test/",
         "dataset_path": "/home/shared/Data/DRAC22/C. Diabetic Retinopathy Grading/1. Original Images/",
-        "model_path": "/home/lkreitner/OCTA-seg/results/20220805_122413/best_metric_model.pth",
+        "model_path": "/home/lkreitner/OCTA-seg/results/20220805_154042/best_metric_model.pth",
         "num_samples": 10,
         "save_images": false
     },
