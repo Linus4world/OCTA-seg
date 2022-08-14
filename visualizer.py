@@ -13,13 +13,16 @@ class Visualizer():
     """
     The Visualizer takes care of all output related functionality.
     """
-    def __init__(self, config: dict, config_path) -> None:
+    def __init__(self, config: dict) -> None:
         """
         Create a visualizer class with the given config that takes care of image and metric saving, as well as the interaction with tensorboard.
         """
         self.config = config
         self.save_to_disk: bool = config["Output"]["save_to_disk"]
         self.save_to_tensorboard: bool = config["Output"]["save_to_tensorboard"]
+
+        if not os.path.isdir(config["Output"]["save_dir"]):
+            os.mkdir(config["Output"]["save_dir"])
 
         self.save_dir = os.path.join(config["Output"]["save_dir"], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
         os.mkdir(self.save_dir)
@@ -31,8 +34,8 @@ class Visualizer():
 
         if self.save_to_disk:
             self.loss_fig = None
-            self.sample_fig, self.axes_sample = plt.subplots(1, 3, figsize=(54, 18))
-            self.sample_fig_small, self.axes_sample_small = plt.subplots(1, 2, figsize=(36, 18))
+            self.sample_fig, _ = plt.subplots(1, 3, figsize=(24, 8))
+            self.sample_fig_small, _ = plt.subplots(1, 2, figsize=(16, 8))
 
         if self.save_to_tensorboard:
             self.tb = SummaryWriter(log_dir=self.save_dir)
@@ -73,17 +76,16 @@ class Visualizer():
 
         if self.save_to_disk:
             if self.loss_fig is None:
-                self.loss_fig, self.loss_fig_axes = plt.subplots(1,len(metric_groups), figsize=(10,5))
+                self.loss_fig, self.loss_fig_axes = plt.subplots(1,len(metric_groups), figsize=(12,5))
             plt.figure(self.loss_fig.number)
-            plt.cla()
             i=0
             for title, record in self.track_record[-1].items():
                 data_y = [[v for v in data_t[title].values()] for data_t in self.track_record]
 
                 ax: plt.Axes = self.loss_fig_axes[i]
+                ax.clear()
                 ax.set_title(title)
                 ax.set_xlabel("epoch")
-                # ax.set_ylim(0,1)
                 ax.plot(self.epochs, data_y)
                 ax.legend(list(record.keys()))
 
@@ -93,6 +95,24 @@ class Visualizer():
         if self.save_to_tensorboard:
             for title,record in metric_groups.items():
                 self.tb.add_scalars(title, record, epoch+1)
+
+    def plot_clf_sample(self, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor, number: int = None):
+        input = input.squeeze().detach().cpu().numpy()
+        input = (input * 255).astype(np.uint8)
+        if self.save_to_disk or self.save_to_tensorboard:
+            fig = plt.subplots(1, input.shape[0], figsize=(input.shape[0]*8, 8))[0]#plt.figure(self.sample_fig_clf.number)
+            for i in range(3):
+                fig.axes[i].set_title(f"Pred: {pred[i].detach().cpu().numpy()}, Real: {truth[i].detach().cpu().numpy()}")
+                fig.axes[i].imshow(input[i])#, cmap='Greys')
+            if number is not None:
+                number = '_'+str(number)
+            else:
+                number=''
+            plt.savefig(os.path.join(self.save_dir, f'sample{number}.png'), bbox_inches='tight')
+        if self.save_to_tensorboard:
+            self.tb.add_figure('sample', fig)
+        elif self.save_to_disk:
+            plt.close()
 
     def plot_sample(self,input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor = None, number: int = None):
         """
@@ -168,6 +188,13 @@ class Visualizer():
         for name, weight in model.named_parameters():
             self.tb.add_histogram(name,weight, epoch)
             self.tb.add_histogram(f'{name}.grad',weight.grad, epoch)
+
+    def save_hyperparams(self, params: dict, metrics):
+        self.tb.add_hparams(params, metrics)
+
+    def close_figures(self):
+        for f in [self.loss_fig, self.sample_fig, self.sample_fig_small]:
+            f.close()
 
 
 def plot_sample(figure, save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor=None, number:int=None):

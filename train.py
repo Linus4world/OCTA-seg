@@ -28,11 +28,12 @@ with open(path) as filepath:
 max_epochs = config["Train"]["epochs"]
 val_interval = config["Train"]["val_interval"]
 VAL_AMP = config["General"]["amp"]
-dtype = torch.float16 if VAL_AMP else torch.float32
+# use amp to accelerate training
+scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 task: Task = config["General"]["task"]
 set_determinism(seed=0)
-visualizer = Visualizer(config, args.config_file)
+visualizer = Visualizer(config)
 
 train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')
@@ -51,15 +52,14 @@ if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.valu
         upsample_kernel_size=(1,*[2]*num_layers,1),
     ).to(device)
 else:
-    model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=config["Data"]["num_classes"]).to(device)
-visualizer.save_model_architecture(model, next(iter(train_loader))["image"].to(device=device))
+    model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=config["Data"]["num_classes"], dropout_prob=0.1).to(device)
+with torch.no_grad():
+    visualizer.save_model_architecture(model, next(iter(train_loader))["image"].to(device=device, dtype=torch.float32))
 
 loss_function = get_loss_function(task, config)
 optimizer = torch.optim.Adam(model.parameters(), 1e-4, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
 metrics = MetricsManager(task)
-# use amp to accelerate training
-scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 
 
 
@@ -78,14 +78,14 @@ for epoch in epoch_tqdm:
     for batch_data in mini_batch_tqdm:
         step += 1
         inputs, labels = (
-            batch_data["image"].to(device, dtype=dtype),
-            batch_data["label"].to(device, dtype=dtype),
+            batch_data["image"].to(device),
+            batch_data["label"].to(device),
         )
         optimizer.zero_grad()
         with torch.cuda.amp.autocast():
             outputs = model(inputs)
-            loss = loss_function(outputs, labels.long())
-            labels = [post_label(torch.tensor(i)) for i in decollate_batch(labels)]
+            loss = loss_function(outputs, labels)
+            labels = [post_label(i) for i in decollate_batch(labels)]
             outputs = [post_pred(i) for i in decollate_batch(outputs)]
             metrics(y_pred=outputs, y=labels)
         scaler.scale(loss).backward()
@@ -110,13 +110,13 @@ for epoch in epoch_tqdm:
             for val_data in tqdm(val_loader, desc='Validation', leave=False):
                 step += 1
                 val_inputs, val_labels = (
-                    val_data["image"].to(device).half(),
-                    val_data["label"].to(device).half(),
+                    val_data["image"].to(device),
+                    val_data["label"].to(device),
                 )
                 with torch.cuda.amp.autocast():
                     val_outputs = model(val_inputs)
-                    val_loss += loss_function(val_outputs, val_labels.long()).item()
-                    val_labels = [post_label(torch.tensor(i)) for i in decollate_batch(val_labels)]
+                    val_loss += loss_function(val_outputs, val_labels).item()
+                    val_labels = [post_label(i) for i in decollate_batch(val_labels)]
                     val_outputs = [post_pred(i) for i in decollate_batch(val_outputs)]
                     metrics(y_pred=val_outputs, y=val_labels)
 
@@ -131,8 +131,11 @@ for epoch in epoch_tqdm:
                 visualizer.save_model(model)
 
             visualizer.plot_losses_and_metrics(epoch_metrics, epoch)
-            if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
-                visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], number= None if best_metric>metric_comp else 'best')
+            if epoch%config["Output"]["save_interval"] == 0:
+                if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+                    visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], number= None if best_metric>metric_comp else 'best')
+                else:
+                    visualizer.plot_clf_sample(val_inputs, val_outputs, val_labels, number= None if best_metric>metric_comp else 'best')
     visualizer.log_model_params(model, epoch)
 
 total_time = time.time() - total_start

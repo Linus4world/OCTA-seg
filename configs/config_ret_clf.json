@@ -34,6 +34,7 @@
     "Output": {
         "save_dir": "/home/lkreitner/OCTA-seg/results/",
         "save_to_disk": true,
-        "save_to_tensorboard": true
+        "save_to_tensorboard": true,
+        "save_interval": 1
     }
 }
