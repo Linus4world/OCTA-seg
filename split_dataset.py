@@ -15,13 +15,13 @@ def mkdir(path):
         os.mkdir(path)
 
 random.seed(0)
-paths = get_custom_file_paths('/home/lkreitner/arterial-tree-generation/dataset_22_07_22', 'gray_z.png')
+paths = get_custom_file_paths('/home/shared/Data/DRAC22/B. Image Quality Assessment/1. Original Images/a. Training Set', '.png')
 indices = list(range(len(paths)))
 random.shuffle(indices)
 
 data_root = '/home/lkreitner/OCTA-seg/datasets/'
 mkdir(data_root)
-data_root = '/home/lkreitner/OCTA-seg/datasets/synth_24_07_22'
+data_root = '/home/lkreitner/OCTA-seg/datasets/DRAC_B'
 mkdir(data_root)
 
 train_split = 0.8

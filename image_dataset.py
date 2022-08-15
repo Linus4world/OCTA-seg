@@ -75,19 +75,21 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
                 AddChanneld(keys=["image"]),
                 RandFlipd(keys=["image"], prob=0.1, spatial_axis=[0, 1]),
-                RandRotated(keys=["image"], range_x=10, range_y=10),
+                CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
         elif phase == "validation":
             return Compose([
                 LoadImaged(keys=["image"], image_only=True),
                 AddChanneld(keys=["image"]),
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
         else:
             return Compose([
                 LoadImaged(keys=["image"], image_only=True),
                 AddChanneld(keys=["image"]),
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
 
 def get_post_transformation(task: Task, num_classes=2) -> tuple[Compose]:

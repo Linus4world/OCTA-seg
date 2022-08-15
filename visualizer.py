@@ -95,6 +95,8 @@ class Visualizer():
         if self.save_to_tensorboard:
             for title,record in metric_groups.items():
                 self.tb.add_scalars(title, record, epoch+1)
+                for k,v in record:
+                    self.tb.add_scalar(k,v,epoch+1)
 
     def plot_clf_sample(self, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor, number: int = None):
         input = input.squeeze().detach().cpu().numpy()
