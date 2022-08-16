@@ -5,5 +5,5 @@ datasets/
 results/
 debug.*
 
-voreen_work_dir/*
-!voreen_work_dir/feature-vesselgraphextraction_headless.vws
+voreen/*
+!voreen/feature-vesselgraphextraction_customized_command_line.vws
