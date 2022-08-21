@@ -1,3 +1,4 @@
+from shutil import copyfile
 import matplotlib.pyplot as plt
 import os
 import torch
@@ -16,7 +17,7 @@ class Visualizer():
     """
     The Visualizer takes care of all output related functionality.
     """
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: dict, continue_train=False) -> None:
         """
         Create a visualizer class with the given config that takes care of image and metric saving, as well as the interaction with tensorboard.
         """
@@ -27,8 +28,25 @@ class Visualizer():
         if not os.path.isdir(config["Output"]["save_dir"]):
             os.mkdir(config["Output"]["save_dir"])
 
-        self.save_dir = os.path.join(config["Output"]["save_dir"], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
-        os.mkdir(self.save_dir)
+        self.track_record: list[dict[str, dict[str, list[float]]]] = list()
+        self.epochs = []
+        self.log_file_path = None
+
+        if continue_train:
+            self.save_dir = os.path.join(config["Output"]["save_dir"][:-15], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+            os.mkdir(self.save_dir)
+            self._copy_log_file(config["Output"]["save_dir"], self.save_dir)
+            with open(self.log_file_path, newline='') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    d = dict()
+                    d["loss"] = {k: float(v) for k,v in list(row.items())[1:3]}
+                    d["metric"] = {k: float(v) for k,v in list(row.items())[3:]}
+                    self.track_record.append(d)
+                    self.epochs.append(int(row["epoch"]))
+        else:
+            self.save_dir = os.path.join(config["Output"]["save_dir"], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+            os.mkdir(self.save_dir)
         config["Output"]["save_dir"] = self.save_dir
         config["Test"]["save_dir"] = os.path.join(self.save_dir, 'test/')
         config["Test"]["model_path"] = os.path.join(self.save_dir, 'best_metric_model.pth')
@@ -38,9 +56,6 @@ class Visualizer():
         if self.save_to_tensorboard:
             self.tb = SummaryWriter(log_dir=self.save_dir)
 
-        self.track_record: list[dict[str, dict[str, list[float]]]] = list()
-        self.epochs = []
-        self.log_file_path = None
 
     def _prepare_log_file(self, record: dict[str, dict[str, float]]):
         titles = [title for v in record.values() for title in v]
@@ -48,6 +63,11 @@ class Visualizer():
         with open(self.log_file_path, 'w+') as file:
             writer = csv.writer(file)
             writer.writerow(["epoch", *titles])
+
+    def _copy_log_file(self, old_dir, new_dir):
+        old_log_file_path = os.path.join(old_dir, 'metrics.csv')
+        self.log_file_path = os.path.join(new_dir, 'metrics.csv')
+        copyfile(old_log_file_path,self.log_file_path)
 
     def plot_losses_and_metrics(self, metric_groups: dict[str, dict[str, float]], epoch: int):
         """

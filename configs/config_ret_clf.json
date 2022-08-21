@@ -13,7 +13,7 @@
     },
     "Train": {
         "dataset_path": "/home/lkreitner/OCTA-seg/datasets/DRAC_C/train.txt",
-        "epochs": 60,
+        "epochs": 100,
         "val_interval": 1,
         "batch_size": 4,
         "lr":1e-4,

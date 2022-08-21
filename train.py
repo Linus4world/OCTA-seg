@@ -7,7 +7,7 @@ import datetime
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
 from monai.utils import set_determinism
-from monai.networks.nets import DynUNet, DenseNet121
+from monai.networks.nets import DynUNet, DenseNet121, DenseNet169
 import time
 from tqdm import tqdm
 
@@ -18,6 +18,7 @@ from visualizer import Visualizer
 # Parse input arguments
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--config_file', type=str, required=True)
+parser.add_argument('--start_epoch', type=int, default=0)
 args = parser.parse_args()
 
 # Read config file
@@ -33,7 +34,8 @@ scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 task: Task = config["General"]["task"]
 set_determinism(seed=0)
-visualizer = Visualizer(config)
+model_path = config["Test"]["model_path"]
+visualizer = Visualizer(config, args.start_epoch>0)
 
 train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')
@@ -52,7 +54,9 @@ if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.valu
         upsample_kernel_size=(1,*[2]*num_layers,1),
     ).to(device)
 else:
-    model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=config["Data"]["num_classes"], dropout_prob=config["Train"]["dropout_prob"]).to(device)
+    model = DenseNet169(spatial_dims=2, in_channels=1, out_channels=config["Data"]["num_classes"], dropout_prob=config["Train"]["dropout_prob"]).to(device)
+if args.start_epoch>0:
+    model.load_state_dict(torch.load(model_path))
 with torch.no_grad():
     visualizer.save_model_architecture(model, next(iter(train_loader))["image"].to(device=device, dtype=torch.float32))
 
@@ -68,7 +72,7 @@ best_metric = -1
 best_metric_epoch = -1
 
 total_start = time.time()
-epoch_tqdm = tqdm(range(max_epochs), desc="epoch")
+epoch_tqdm = tqdm(range(args.start_epoch,max_epochs), desc="epoch")
 for epoch in epoch_tqdm:
     epoch_metrics = dict()
     model.train()
