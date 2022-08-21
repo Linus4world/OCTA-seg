@@ -13,11 +13,13 @@
         "num_classes": 1
     },
     "Train": {
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train.txt",
         "epochs": 60,
         "val_interval": 1,
         "batch_size": 4,
-        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train.txt",
-        "lambda_cl_dice": 0
+        "lambda_cl_dice": 0,
+        "lr":1e-4,
+        "dropout_prob": 0
     },
     "Validation": {
         "batch_size": 4,
@@ -38,5 +40,14 @@
         "save_to_disk": true,
         "save_to_tensorboard": true,
         "save_interval": 1
+    },
+    "Voreen": {
+        "image_file": "",
+        "voreen_tool_path": "/home/shared/Software/Voreen-source/bin/",
+        "workspace_file": "/home/lkreitner/OCTA-seg/voreen/feature-vesselgraphextraction_customized_command_line.vws",
+        "outdir": "/home/lkreitner/OCTA-seg/voreen/workdir/",
+        "tempdir": "/home/lkreitner/OCTA-seg/voreen/tmpdir/",
+        "cachedir": "/home/lkreitner/OCTA-seg/voreen/cachedir/",
+        "bulge_size": 1.5
     }
 }

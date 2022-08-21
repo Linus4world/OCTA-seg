@@ -129,7 +129,7 @@
                                 </paths>
                             </paths>
                         </Property>
-                        <Property mapKey="prettyJson" name="prettyJson" value="false" />
+                        <Property mapKey="prettyJson" name="prettyJson" value="true" />
                         <Property mapKey="save" name="save" />
                     </Properties>
                     <Inports>

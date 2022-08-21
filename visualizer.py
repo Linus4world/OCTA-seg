@@ -8,6 +8,9 @@ import datetime
 import csv
 import nibabel as nib
 import json
+import math
+
+from voreen_vesselgraphextraction import extract_vessel_graph
 
 class Visualizer():
     """
@@ -34,8 +37,9 @@ class Visualizer():
 
         if self.save_to_disk:
             self.loss_fig = None
-            self.sample_fig, _ = plt.subplots(1, 3, figsize=(24, 8))
-            self.sample_fig_small, _ = plt.subplots(1, 2, figsize=(16, 8))
+            inches = get_fig_size(input)
+            self.sample_fig, _ = plt.subplots(1, 3, figsize=(3*inches, inches))
+            self.sample_fig_small, _ = plt.subplots(1, 2, figsize=(2*inches, inches))
 
         if self.save_to_tensorboard:
             self.tb = SummaryWriter(log_dir=self.save_dir)
@@ -95,14 +99,15 @@ class Visualizer():
         if self.save_to_tensorboard:
             for title,record in metric_groups.items():
                 self.tb.add_scalars(title, record, epoch+1)
-                for k,v in record:
+                for k,v in record.items():
                     self.tb.add_scalar(k,v,epoch+1)
 
     def plot_clf_sample(self, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor, number: int = None):
         input = input.squeeze().detach().cpu().numpy()
         input = (input * 255).astype(np.uint8)
         if self.save_to_disk or self.save_to_tensorboard:
-            fig = plt.subplots(1, input.shape[0], figsize=(input.shape[0]*8, 8))[0]#plt.figure(self.sample_fig_clf.number)
+            inches = get_fig_size(input)
+            fig = plt.subplots(1, input.shape[0], figsize=(input.shape[0]*inches, inches))[0]#plt.figure(self.sample_fig_clf.number)
             for i in range(3):
                 fig.axes[i].set_title(f"Pred: {pred[i].detach().cpu().numpy()}, Real: {truth[i].detach().cpu().numpy()}")
                 fig.axes[i].imshow(input[i])#, cmap='Greys')
@@ -199,7 +204,7 @@ class Visualizer():
             f.close()
 
 
-def plot_sample(figure, save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor=None, number:int=None):
+def plot_sample(save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor=None, number:int=None):
     """
     Create a 3x1 (or 2x1 if no truth tensor is supplied) grid from the given 2D image tensors and save the image with the given number as label
     """
@@ -213,16 +218,18 @@ def plot_sample(figure, save_dir: str, input: torch.Tensor, pred: torch.Tensor, 
         truth = truth.squeeze().detach().cpu().numpy()
         truth = (truth * 255).astype(np.uint8)
 
-    fig = plt.figure(figure.number)
+    inches = get_fig_size(input)
+    n = 2 if truth is None else 3
+    fig, _ = plt.subplots(1, n, figsize=(n*inches, inches))
     plt.cla()
     fig.axes[0].set_title("Input")
-    fig.axes[0].imshow(input)#, cmap='Greys')
+    fig.axes[0].imshow(input, cmap='gray')
 
     fig.axes[1].set_title("Prediction")
     fig.axes[1].imshow(pred)#, cmap='Greys')
 
     if truth is not None:
-        fig.axes[2].set_title("Truth")
+        fig.axes[2].set_title("Graph")
         fig.axes[2].imshow(truth)#, cmap='Greys')
 
     if number is not None:
@@ -239,3 +246,57 @@ def create_slim_3D_volume(img_2D_proj: torch.Tensor, save_dir: str, number: int 
     a = np.stack([np.zeros_like(a), a, np.zeros_like(a)], axis=-1)
     img_nii = nib.Nifti1Image(a.astype(np.uint8), np.eye(4))
     nib.save(img_nii, os.path.join(save_dir, f'sample{number}.nii'))
+
+def extract_vessel_graph_features(img_2D_proj: torch.Tensor, save_dir: str, voreen_config: dict, number: int):
+    a = img_2D_proj.cpu().numpy().squeeze() * 255
+    a = np.stack([np.zeros_like(a), a, np.zeros_like(a)], axis=-1)
+    img_nii = nib.Nifti1Image(a.astype(np.uint8), np.eye(4))
+    
+    if not os.path.exists(voreen_config["tempdir"]):
+        os.mkdir(voreen_config["tempdir"])
+    nii_path = os.path.join(voreen_config["tempdir"], f'sample{number}.nii')
+    nib.save(img_nii, nii_path)
+    extract_vessel_graph(nii_path, 
+        save_dir,
+        voreen_config["tempdir"],
+        voreen_config["cachedir"],
+        voreen_config["bulge_size"],
+        voreen_config["workspace_file"],
+        voreen_config["voreen_tool_path"],
+        number=str(number)
+    )
+
+def get_fig_size(input: torch.Tensor):
+    return input.shape[-1]/96+2
+
+def eukledian_dist(pos1: tuple[float], pos2: tuple[float]) -> float:
+    dist = [(a - b)**2 for a, b in zip(pos1, pos2)]
+    dist = math.sqrt(sum(dist))
+    return dist
+
+def graph_file_to_img(filepath: str):
+    with open(filepath) as file:
+        j = json.load(file)
+    img = torch.zeros((304,304))
+    max = math.sqrt(0.5)
+
+    for edge in j["graph"]["edges"]:
+        if "skeletonVoxels"in edge:
+            for voxel in edge["skeletonVoxels"]:
+                x = voxel["pos"][0]
+                y = voxel["pos"][1]
+
+                v1 = (int(x), int(y))
+                v2 = (int(x), int(y)+1)
+                v3 = (int(x)+1, int(y))
+                v4 = (int(x)+1, int(y)+1)
+
+                for v in [v1,v2,v3,v4]:
+                    d = eukledian_dist((v[0]+.5, v[1]+.5),(x,y))
+                    intensity = d/max
+                    img[v] = 0 if intensity<0.5 else 1
+    for node in j["graph"]["nodes"]:
+        # if "voxels_" in node:
+        for voxel in node["voxels_"]:
+            img[int(voxel[0])-1:int(voxel[0])+2, int(voxel[1])-1:int(voxel[1])+2] = 0.5
+    return img

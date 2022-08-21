@@ -229,3 +229,48 @@ class Resized(MapTransform):
             d = data[key]
             data[key] = torch.nn.functional.interpolate(d.unsqueeze(0), size=self.shape, mode='bilinear').squeeze(0)
         return data
+
+class RandCropOrPadd(MapTransform):
+    """
+    Randomly crop or pad the image with a random zoom factor.
+    """
+    def __init__(self, keys: list[str], prob=0.1, min_factor=1, max_factor=1) -> None:
+        """
+        Randomly crop or pad the image with a random zoom factor.
+        If zoom_factor > 1, the image will be zero-padded to fit the larger image shape.
+        If zoom_factor > 1, the image will be cropped at a random center to fit the larger image shape.
+
+        Parameters:
+            - keys: List of dict keys where the noise should be applied to
+            - prob: Probability with which the transform is applied
+            - min_factor: Smallest allowed zoom factor
+            - max_factor: Largest allowed zoom factor
+        """
+        super().__init__(keys)
+        self.prob = prob
+        self.min_factor = min_factor
+        self.max_factor = max_factor
+
+    def __call__(self, data):
+        if random.uniform(0,1)<self.prob:
+            factor = random.uniform(self.min_factor, self.max_factor)
+            slice_x = slice_y = None
+            for k in self.keys:
+                d: torch.Tensor = data[k]
+                if factor<1:
+                    if slice_x is None:
+                        s_x = int(d.shape[1]*factor)
+                        s_y = int(d.shape[2]*factor)
+                        start_x = random.randint(0, d.shape[1]-s_x)
+                        start_y = random.randint(0, d.shape[2]-s_y)
+                        slice_x = slice(start_x, start_x + s_x)
+                        slice_y = slice(start_y, start_y + s_y)
+                    d = d[:,slice_x, slice_y]
+                elif factor>1:
+                    frame = torch.zeros((d.shape[0], int(d.shape[1]*factor), int(d.shape[2]*factor)))
+                    start_x = (frame.shape[1]-d.shape[1])//2
+                    start_y = (frame.shape[2]-d.shape[2])//2
+                    frame[:,start_x:start_x+d.shape[1], start_y:start_y+d.shape[2]] = d.clone()
+                    d = frame
+                data[k] = d
+        return data

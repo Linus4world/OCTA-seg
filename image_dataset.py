@@ -1,8 +1,8 @@
 from monai.data import DataLoader, Dataset
 from monai.transforms import *
-from data_transforms import AddRealNoised, ToDict, Resized, AddLineArtifact
+from data_transforms import AddRealNoised, RandCropOrPadd, ToDict, Resized, AddLineArtifact
 import os
-from numpy import deg2rad, array
+from numpy import array
 import csv
 import torch
 
@@ -31,17 +31,16 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 LoadImage(image_only=True),
                 ScaleIntensity(0, 1),
                 AddChannel(),
-                Rotate(deg2rad(270)),
-                Flip(0),
                 ToDict(),
                 # AddRandomNoised(noise_layer_path=config["Data"]["noise_map_path"]),
                 AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
-                RandFlipd(keys=["image", "label"], prob=0.1, spatial_axis=[0,1]),
-                RandScaleCropd(keys=["image", "label"], roi_scale=0.5, max_roi_scale=1, random_center=True, random_size=True),
+                RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=[0,1]),
+                RandCropOrPadd(keys=["image", "label"], prob=0.5, min_factor=0.8, max_factor=1.2),
+                RandRotate90d(keys=["image", "label"], prob=1),
                 RandRotated(keys=["image", "label"], range_x=10),
-                Resized(keys=["image", "label"], shape=(1024,1024)),
+                Rand2DElasticd(keys=["image", "label"], prob=.5, spacing=(20,20), magnitude_range=(2,4), padding_mode='zeros'),
                 AddLineArtifact(keys=["image"]),
-                AsDiscreted(keys=["label"],threshold=0.1),
+                AsDiscreted(keys=["label"], threshold=0.001),
                 CastToTyped(keys=["image", "label"], dtype=dtype)
             ])
         elif phase == "validation":
@@ -49,14 +48,11 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 LoadImage(image_only=True),
                 ScaleIntensity(0, 1),
                 AddChannel(),
-                Rotate(deg2rad(270)),
+                Rotate90(k=1),
                 Flip(0),
                 ToDict(),
                 AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
-                RandScaleCropd(keys=["image", "label"], roi_scale=0.3, max_roi_scale=1, random_center=True, random_size=True),
-                Resized(keys=["image", "label"], shape=(1024,1024)),
-                AddLineArtifact(keys=["image"]),
-                AsDiscreted(keys=["label"],threshold=0.1),
+                AsDiscreted(keys=["label"],threshold=0.001),
                 CastToTyped(keys=["image", "label"], dtype=dtype)
             ])
         else:
@@ -64,9 +60,9 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 LoadImage(image_only=True),
                 ScaleIntensity(0, 1),
                 AddChannel(),
-                Rotate(deg2rad(270)),
+                Rotate90(k=1),
                 Flip(0),
-                CastToTyped(keys=["image", "label"], dtype=dtype)
+                CastToType(dtype=dtype)
             ])
     else:
         if phase == "train":
@@ -108,16 +104,17 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
     task = config["General"]["task"]
     transform = _get_transformation(config, task, phase, dtype=torch.float16 if config["General"]["amp"] else torch.float32)
 
-    data_path = config["Data"]["dataset_images"]
     if phase == "test":
         data_path = config["Test"]["dataset_images"]
+    else:
+        data_path = config["Data"]["dataset_images"]
 
     with open(config[phase.capitalize()]["dataset_path"], 'r') as f:
         lines = f.readlines()
         indices = [int(line.rstrip()) for line in lines]
     if task == Task.VESSEL_SEGMENTATION.value:
         image_paths = get_custom_file_paths(*data_path)
-        image_paths = list(array(image_paths)[indices])
+        image_paths = array(image_paths)[indices].tolist()
         train_files = image_paths
     else:
         reader = csv.reader(open(config["Data"]["dataset_labels"], 'r'))

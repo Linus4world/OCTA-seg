@@ -12,10 +12,12 @@
         "num_classes": 3
     },
     "Train": {
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/DRAC_C/train.txt",
         "epochs": 60,
         "val_interval": 1,
         "batch_size": 4,
-        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/DRAC_C/train.txt"
+        "lr":1e-4,
+        "dropout_prob": 0
     },
     "Validation": {
         "batch_size": 4,

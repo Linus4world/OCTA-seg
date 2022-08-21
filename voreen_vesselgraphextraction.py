@@ -4,7 +4,7 @@ import pathlib
 from shutil import copyfile
 
 
-def extract_vessel_graph(volume_path: str, outdir: str, tempdir: str, cachedir:str, bulge_size: float, workspace_file: str, voreen_tool_path: str):
+def extract_vessel_graph(volume_path: str, outdir: str, tempdir: str, cachedir:str, bulge_size: float, workspace_file: str, voreen_tool_path: str, number=''):
     bulge_size_identifier = f'{bulge_size}'
     bulge_size_identifier = bulge_size_identifier.replace('.','_')
 
@@ -12,9 +12,9 @@ def extract_vessel_graph(volume_path: str, outdir: str, tempdir: str, cachedir:s
 
     bulge_size_identifier = f'{bulge_size}'
     bulge_size_identifier = bulge_size_identifier.replace('.','_')
-    edge_path = f'{outdir}sample_b_{bulge_size_identifier}_edges.csv'
-    node_path = f'{outdir}sample_b_{bulge_size_identifier}_nodes.csv'
-    graph_path = f'{outdir}sample_b_{bulge_size_identifier}_graph.vvg'
+    edge_path = f'{outdir}sample_{number}_edges.csv'
+    node_path = f'{outdir}sample_{number}_nodes.csv'
+    graph_path = f'{outdir}sample_{number}_graph.json'
 
     # create temp directory
     temp_directory = os.path.join(tempdir,datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S"))

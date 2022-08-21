@@ -52,12 +52,12 @@ if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.valu
         upsample_kernel_size=(1,*[2]*num_layers,1),
     ).to(device)
 else:
-    model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=config["Data"]["num_classes"], dropout_prob=0.1).to(device)
+    model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=config["Data"]["num_classes"], dropout_prob=config["Train"]["dropout_prob"]).to(device)
 with torch.no_grad():
     visualizer.save_model_architecture(model, next(iter(train_loader))["image"].to(device=device, dtype=torch.float32))
 
 loss_function = get_loss_function(task, config)
-optimizer = torch.optim.Adam(model.parameters(), 1e-4, weight_decay=1e-5)
+optimizer = torch.optim.Adam(model.parameters(), config["Train"]["lr"], weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
 metrics = MetricsManager(task)
 
