@@ -13,7 +13,7 @@
                 </MetaItem>
                 <MetaItem name="ProcessorSelection" type="SerializableVectorMetaData::Processor" isOwner="false">
                     <values>
-                        <item type="VesselGraphGlobalStats" ref="ref4" />
+                        <item type="VolumeSave" ref="ref7" />
                     </values>
                 </MetaItem>
                 <MetaItem name="ZoomCenter" type="Vec2MetaData">
@@ -26,7 +26,7 @@
             <Processors>
                 <Processor type="VolumeSource" name="Vessel Volume" id="ref0">
                     <MetaData>
-                        <MetaItem name="ProcessorGraphicsItem" type="PositionMetaData" x="96" y="-802" />
+                        <MetaItem name="ProcessorGraphicsItem" type="PositionMetaData" x="94" y="-803" />
                     </MetaData>
                     <Properties>
                         <Property mapKey="volumeInfo" name="volumeInfo" />
@@ -34,7 +34,7 @@
                             <urls protocol="">
                                 <path noPathSet="false">
                                     <paths>
-                                        <item value="/home/voreen_data/volume.nii" />
+                                        <item value="volume.nii" />
                                     </paths>
                                 </path>
                                 <searchParameters>
@@ -74,7 +74,7 @@
                         <Property mapKey="statusDisplay" name="statusDisplay" value="Finished" />
                         <Property mapKey="stopUpdateButton" name="stopUpdateButton" />
                         <Property mapKey="synchronousComputation" name="synchronousComputation" value="true" />
-                        <Property mapKey="tmpStorageSizeInfo" name="tmpStorageSizeInfo" value="23.9 MB" />
+                        <Property mapKey="tmpStorageSizeInfo" name="tmpStorageSizeInfo" value="67.7 kB" />
                     </Properties>
                     <Inports>
                         <Port name="vesselgraphcreator.fixedForegroundPointInport" direction="1" portID="vesselgraphcreator.fixedForegroundPointInport" guiName="Fixed Foreground Points" allowMultipleConnections="false" invalidationLevel="1">
@@ -125,7 +125,7 @@
                         <Property mapKey="graphFilePath" name="graphFilePath" guiName="Vessel Graph File" watchMode="1" fileWatchEnabled="false">
                             <paths noPathSet="false">
                                 <paths>
-                                    <item value="/home/voreen_data/graph.vvg.gz" />
+                                    <item value="graph.vvg" />
                                 </paths>
                             </paths>
                         </Property>
@@ -163,9 +163,9 @@
                         <Property mapKey="outputVolumeFilePath" name="outputVolumeFilePath" watchMode="3" fileWatchEnabled="false" useGeneratedPath="true">
                             <paths noPathSet="false">
                                 <paths>
-                                    <item value="voreen-src-unix-nightly/data/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/3466cda7-8b6d-422c-92e4-d22bbe2d4a4d.h5" />
-                                    <item value="data/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/3466cda7-8b6d-422c-92e4-d22bbe2d4a4d.h5" />
-                                    <item value="/home/juli/tum/git_repositories/voreen/voreen-src-unix-nightly/data/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/3466cda7-8b6d-422c-92e4-d22bbe2d4a4d.h5" />
+                                    <item value="../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/3466cda7-8b6d-422c-92e4-d22bbe2d4a4d.h5" />
+                                    <item value="../../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/3466cda7-8b6d-422c-92e4-d22bbe2d4a4d.h5" />
+                                    <item value="C:/Users/Linus/OneDrive/Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/3466cda7-8b6d-422c-92e4-d22bbe2d4a4d.h5" />
                                 </paths>
                             </paths>
                         </Property>
@@ -217,9 +217,9 @@
                         <Property mapKey="outputVolumeFilePath" name="outputVolumeFilePath" watchMode="3" fileWatchEnabled="false" useGeneratedPath="true">
                             <paths noPathSet="false">
                                 <paths>
-                                    <item value="voreen-src-unix-nightly/data/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/b06ce446-c27e-47df-a4e3-d10b64552c26.h5" />
-                                    <item value="data/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/b06ce446-c27e-47df-a4e3-d10b64552c26.h5" />
-                                    <item value="/home/juli/tum/git_repositories/voreen/voreen-src-unix-nightly/data/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/b06ce446-c27e-47df-a4e3-d10b64552c26.h5" />
+                                    <item value="../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/b06ce446-c27e-47df-a4e3-d10b64552c26.h5" />
+                                    <item value="../../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/b06ce446-c27e-47df-a4e3-d10b64552c26.h5" />
+                                    <item value="C:/Users/Linus/OneDrive/Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/b06ce446-c27e-47df-a4e3-d10b64552c26.h5" />
                                 </paths>
                             </paths>
                         </Property>
@@ -250,7 +250,7 @@
                     <CoProcessorOutports />
                     <InteractionHandlers />
                 </Processor>
-                <Processor type="VolumeFilterList" name="Surface Smoothing" id="ref7">
+                <Processor type="VolumeFilterList" name="Surface Smoothing" id="ref8">
                     <MetaData>
                         <MetaItem name="ProcessorGraphicsItem" type="PositionMetaData" x="88" y="-562" />
                     </MetaData>
@@ -320,9 +320,9 @@
                         <Property mapKey="outputVolumeFilePath" name="outputVolumeFilePath" watchMode="3" fileWatchEnabled="false" useGeneratedPath="true">
                             <paths noPathSet="false">
                                 <paths>
-                                    <item value="voreen-src-unix-nightly/data/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e149e0b1-47fa-4b20-b36e-2d51ee1e85c3.h5" />
-                                    <item value="data/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e149e0b1-47fa-4b20-b36e-2d51ee1e85c3.h5" />
-                                    <item value="/home/juli/tum/git_repositories/voreen/voreen-src-unix-nightly/data/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e149e0b1-47fa-4b20-b36e-2d51ee1e85c3.h5" />
+                                    <item value="../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e149e0b1-47fa-4b20-b36e-2d51ee1e85c3.h5" />
+                                    <item value="../../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e149e0b1-47fa-4b20-b36e-2d51ee1e85c3.h5" />
+                                    <item value="C:/Users/Linus/OneDrive/Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e149e0b1-47fa-4b20-b36e-2d51ee1e85c3.h5" />
                                 </paths>
                             </paths>
                         </Property>
@@ -402,16 +402,16 @@
                         <Property mapKey="nodeExportFilePath" name="nodeExportFilePath" guiName="Node Data Export File" watchMode="1" fileWatchEnabled="false">
                             <paths noPathSet="false">
                                 <paths>
-                                    <item value="/home/voreen_data/nodes.csv" />
+                                    <item value="nodes.csv" />
                                 </paths>
                             </paths>
                         </Property>
-                        <Property mapKey="numEdges" name="numEdges" value="42727" />
-                        <Property mapKey="numNodes" name="numNodes" value="28538" />
+                        <Property mapKey="numEdges" name="numEdges" value="1165" />
+                        <Property mapKey="numNodes" name="numNodes" value="851" />
                         <Property mapKey="segmentExportFilePath" name="segmentExportFilePath" guiName="Edge Data Export File" watchMode="1" fileWatchEnabled="false">
                             <paths noPathSet="false">
                                 <paths>
-                                    <item value="/home/voreen_data/edges.csv" />
+                                    <item value="edges.csv" />
                                 </paths>
                             </paths>
                         </Property>
@@ -496,14 +496,14 @@
                         <Property mapKey="outputVolumeFilePath" name="outputVolumeFilePath" watchMode="3" fileWatchEnabled="false" useGeneratedPath="true">
                             <paths noPathSet="false">
                                 <paths>
-                                    <item value="voreen-src-unix-nightly/data/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e68c5170-03c3-4a20-abd0-ad610c43d035.h5" />
-                                    <item value="data/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e68c5170-03c3-4a20-abd0-ad610c43d035.h5" />
-                                    <item value="/home/juli/tum/git_repositories/voreen/voreen-src-unix-nightly/data/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e68c5170-03c3-4a20-abd0-ad610c43d035.h5" />
+                                    <item value="../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e68c5170-03c3-4a20-abd0-ad610c43d035.h5" />
+                                    <item value="../../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e68c5170-03c3-4a20-abd0-ad610c43d035.h5" />
+                                    <item value="C:/Users/Linus/OneDrive/Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e68c5170-03c3-4a20-abd0-ad610c43d035.h5" />
                                 </paths>
                             </paths>
                         </Property>
                         <Property mapKey="progressDisplay" name="progressDisplay" guiName="Progress (Thresholding)" />
-                        <Property mapKey="statusDisplay" name="statusDisplay" value="Interrupted" />
+                        <Property mapKey="statusDisplay" name="statusDisplay" value="Finished" />
                         <Property mapKey="stopUpdateButton" name="stopUpdateButton" />
                         <Property mapKey="synchronousComputation" name="synchronousComputation" value="true" />
                         <Property mapKey="valueMap" name="valueMap" domainFittingStrategy="1" computeHistogram="true">
@@ -560,6 +560,37 @@
                     <Value_Map_instanceSettings />
                     <Vorticity_instanceSettings />
                 </Processor>
+                <Processor type="VolumeSave" name="VolumeSave" id="ref7">
+                    <MetaData>
+                        <MetaItem name="ProcessorGraphicsItem" type="PositionMetaData" x="107" y="369" />
+                    </MetaData>
+                    <Properties>
+                        <Property mapKey="continousSave" name="continousSave" value="true" />
+                        <Property mapKey="outputFilename" name="outputFilename" watchMode="1" fileWatchEnabled="false">
+                            <paths noPathSet="false">
+                                <paths>
+                                    <item value="output.h5" />
+                                </paths>
+                            </paths>
+                        </Property>
+                        <Property mapKey="save" name="save" />
+                        <Property mapKey="saveOnPathChange" name="saveOnPathChange" value="true" />
+                        <Property mapKey="volumeInfo" name="volumeInfo" />
+                    </Properties>
+                    <Inports>
+                        <Port name="volumehandle.input" direction="1" portID="volumehandle.input" guiName="Volume Input" allowMultipleConnections="false" invalidationLevel="1">
+                            <Properties>
+                                <Property mapKey="textureBorderIntensity" name="textureBorderIntensity" value="0" />
+                                <Property mapKey="textureClampMode_" name="textureClampMode_" value="clamp-to-edge" />
+                                <Property mapKey="textureFilterMode_" name="textureFilterMode_" value="linear" />
+                            </Properties>
+                        </Port>
+                    </Inports>
+                    <Outports />
+                    <CoProcessorInports />
+                    <CoProcessorOutports />
+                    <InteractionHandlers />
+                </Processor>
             </Processors>
             <Connections>
                 <Connection>
@@ -603,8 +634,16 @@
                     </Inport>
                 </Connection>
                 <Connection>
+                    <Outport name="connectedcomponentanalysis.outport">
+                        <Processor type="ConnectedComponentAnalysis" ref="ref6" />
+                    </Outport>
+                    <Inport name="volumehandle.input">
+                        <Processor type="VolumeSave" ref="ref7" />
+                    </Inport>
+                </Connection>
+                <Connection>
                     <Outport name="volumehandle.output">
-                        <Processor type="VolumeFilterList" ref="ref7" />
+                        <Processor type="VolumeFilterList" ref="ref8" />
                     </Outport>
                     <Inport name="connectedcomponentanalysis.inport">
                         <Processor type="ConnectedComponentAnalysis" ref="ref5" />
@@ -615,7 +654,7 @@
                         <Processor type="VolumeFilterList" ref="ref1" />
                     </Outport>
                     <Inport name="volumehandle.input">
-                        <Processor type="VolumeFilterList" ref="ref7" />
+                        <Processor type="VolumeFilterList" ref="ref8" />
                     </Inport>
                 </Connection>
             </Connections>

@@ -64,8 +64,8 @@ with torch.no_grad():
         else:
             val_outputs = model(val_inputs)
         val_outputs = [post_trans(i).cpu() for i in decollate_batch(val_outputs)]
-        extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)
+        clean_seg = extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)
         graph_file = os.path.join(config["Test"]["save_dir"], f'sample_{num_sample}_graph.json')
-        graph_img = graph_file_to_img(graph_file)
-        
+        graph_img = graph_file_to_img(graph_file, val_outputs[0].shape[-2:])
         plot_sample(config["Test"]["save_dir"], val_inputs[0], val_outputs[0], graph_img, number=num_sample)
+        # plot_sample(config["Test"]["save_dir"], val_inputs[0], torch.tensor(clean_seg), graph_img, number=num_sample)

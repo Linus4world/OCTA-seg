@@ -35,12 +35,6 @@ class Visualizer():
         with open(os.path.join(self.save_dir, 'config.json'), 'w') as f:
             json.dump(config, f, ensure_ascii=False, indent=4)
 
-        if self.save_to_disk:
-            self.loss_fig = None
-            inches = get_fig_size(input)
-            self.sample_fig, _ = plt.subplots(1, 3, figsize=(3*inches, inches))
-            self.sample_fig_small, _ = plt.subplots(1, 2, figsize=(2*inches, inches))
-
         if self.save_to_tensorboard:
             self.tb = SummaryWriter(log_dir=self.save_dir)
 
@@ -79,14 +73,12 @@ class Visualizer():
             writer.writerow([epoch, *[title for v in metric_groups.values() for title in v.values()]])
 
         if self.save_to_disk:
-            if self.loss_fig is None:
-                self.loss_fig, self.loss_fig_axes = plt.subplots(1,len(metric_groups), figsize=(12,5))
-            plt.figure(self.loss_fig.number)
+            loss_fig, loss_fig_axes = plt.subplots(1,len(metric_groups), figsize=(12,5))
             i=0
             for title, record in self.track_record[-1].items():
                 data_y = [[v for v in data_t[title].values()] for data_t in self.track_record]
 
-                ax: plt.Axes = self.loss_fig_axes[i]
+                ax: plt.Axes = loss_fig_axes[i]
                 ax.clear()
                 ax.set_title(title)
                 ax.set_xlabel("epoch")
@@ -95,6 +87,7 @@ class Visualizer():
 
                 i+=1
             plt.savefig(os.path.join(self.save_dir, 'loss.png'), bbox_inches='tight')
+            plt.close()
         
         if self.save_to_tensorboard:
             for title,record in metric_groups.items():
@@ -106,10 +99,10 @@ class Visualizer():
         input = input.squeeze().detach().cpu().numpy()
         input = (input * 255).astype(np.uint8)
         if self.save_to_disk or self.save_to_tensorboard:
-            inches = get_fig_size(input)
-            fig = plt.subplots(1, input.shape[0], figsize=(input.shape[0]*inches, inches))[0]#plt.figure(self.sample_fig_clf.number)
+            inches = get_fig_size(input)/2
+            fig = plt.subplots(1, input.shape[0], figsize=(input.shape[0]*inches, inches))[0]
             for i in range(3):
-                fig.axes[i].set_title(f"Pred: {pred[i].detach().cpu().numpy()}, Real: {truth[i].detach().cpu().numpy()}")
+                fig.axes[i].set_title(f"Pred: {np.round(pred[i].detach().cpu().numpy(),2)}, Real: {truth[i].detach().cpu().numpy()}")
                 fig.axes[i].imshow(input[i])#, cmap='Greys')
             if number is not None:
                 number = '_'+str(number)
@@ -138,8 +131,8 @@ class Visualizer():
         pred = (pred * 255).astype(np.uint8)
         
         if self.save_to_disk:
-            fig = plt.figure(self.sample_fig.number if truth is not None else self.sample_fig_small.number)
-
+            inches = get_fig_size(input)
+            fig, _ = plt.subplots(1, 3, figsize=(3*inches, inches))
             fig.axes[0].set_title("Input")
             fig.axes[0].imshow(input)#, cmap='Greys')
 
@@ -155,6 +148,7 @@ class Visualizer():
             else:
                 number=''
             plt.savefig(os.path.join(self.save_dir, f'sample{number}.png'), bbox_inches='tight')
+            plt.close()
 
         if self.save_to_tensorboard:
             if truth is not None:
@@ -199,11 +193,6 @@ class Visualizer():
     def save_hyperparams(self, params: dict, metrics):
         self.tb.add_hparams(params, metrics)
 
-    def close_figures(self):
-        for f in [self.loss_fig, self.sample_fig, self.sample_fig_small]:
-            f.close()
-
-
 def plot_sample(save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor=None, number:int=None):
     """
     Create a 3x1 (or 2x1 if no truth tensor is supplied) grid from the given 2D image tensors and save the image with the given number as label
@@ -218,12 +207,12 @@ def plot_sample(save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: t
         truth = truth.squeeze().detach().cpu().numpy()
         truth = (truth * 255).astype(np.uint8)
 
-    inches = get_fig_size(input)
+    inches = get_fig_size(input)/2
     n = 2 if truth is None else 3
     fig, _ = plt.subplots(1, n, figsize=(n*inches, inches))
     plt.cla()
     fig.axes[0].set_title("Input")
-    fig.axes[0].imshow(input, cmap='gray')
+    fig.axes[0].imshow(input)#, cmap='gray')
 
     fig.axes[1].set_title("Prediction")
     fig.axes[1].imshow(pred)#, cmap='Greys')
@@ -237,6 +226,7 @@ def plot_sample(save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: t
     else:
         number=''
     plt.savefig(os.path.join(save_dir, f'sample{number}.png'), bbox_inches='tight')
+    plt.close()
 
 def create_slim_3D_volume(img_2D_proj: torch.Tensor, save_dir: str, number: int = None):
     """
@@ -256,7 +246,7 @@ def extract_vessel_graph_features(img_2D_proj: torch.Tensor, save_dir: str, vore
         os.mkdir(voreen_config["tempdir"])
     nii_path = os.path.join(voreen_config["tempdir"], f'sample{number}.nii')
     nib.save(img_nii, nii_path)
-    extract_vessel_graph(nii_path, 
+    return extract_vessel_graph(nii_path, 
         save_dir,
         voreen_config["tempdir"],
         voreen_config["cachedir"],
@@ -274,10 +264,10 @@ def eukledian_dist(pos1: tuple[float], pos2: tuple[float]) -> float:
     dist = math.sqrt(sum(dist))
     return dist
 
-def graph_file_to_img(filepath: str):
+def graph_file_to_img(filepath: str, shape: tuple[int]):
     with open(filepath) as file:
         j = json.load(file)
-    img = torch.zeros((304,304))
+    img = torch.zeros(shape)
     max = math.sqrt(0.5)
 
     for edge in j["graph"]["edges"]:

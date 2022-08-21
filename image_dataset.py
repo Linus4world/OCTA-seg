@@ -2,7 +2,7 @@ from monai.data import DataLoader, Dataset
 from monai.transforms import *
 from data_transforms import AddRealNoised, RandCropOrPadd, ToDict, Resized, AddLineArtifact
 import os
-from numpy import array
+from numpy import array, deg2rad
 import csv
 import torch
 

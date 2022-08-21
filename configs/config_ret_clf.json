@@ -22,7 +22,7 @@
     "Validation": {
         "batch_size": 4,
         "dataset_path": "/home/lkreitner/OCTA-seg/datasets/DRAC_C/val.txt",
-        "model_path": "/home/lkreitner/OCTA-seg/results/20220725_160930/best_metric_model.pth"
+        "model_path": ""
     },
     "Test": {
         "batch_size": 1,

@@ -2,6 +2,8 @@ import os
 import datetime
 import pathlib
 from shutil import copyfile
+import h5py
+import numpy as np
 
 
 def extract_vessel_graph(volume_path: str, outdir: str, tempdir: str, cachedir:str, bulge_size: float, workspace_file: str, voreen_tool_path: str, number=''):
@@ -27,13 +29,16 @@ def extract_vessel_graph(volume_path: str, outdir: str, tempdir: str, cachedir:s
     with open(os.path.join(temp_directory,voreen_workspace), 'r') as file :
         filedata = file.read()
 
-    # Replace the target string
-    filedata = filedata.replace("/home/voreen_data/volume.nii", volume_path)
-    filedata = filedata.replace("/home/voreen_data/nodes.csv", node_path)
-    filedata = filedata.replace("/home/voreen_data/edges.csv", edge_path)
-    filedata = filedata.replace("/home/voreen_data/graph.vvg.gz", graph_path)
-    filedata = filedata.replace('<Property mapKey="minBulgeSize" name="minBulgeSize" value="3" />', bulge_path)
+    out_path = f'{tempdir}sample.h5'
 
+    # Replace the target string
+    filedata = filedata.replace("volume.nii", volume_path)
+    filedata = filedata.replace("nodes.csv", node_path)
+    filedata = filedata.replace("edges.csv", edge_path)
+    filedata = filedata.replace("graph.vvg", graph_path)
+    filedata = filedata.replace('<Property mapKey="minBulgeSize" name="minBulgeSize" value="3" />', bulge_path)
+    filedata = filedata.replace("input.nii", volume_path)
+    filedata = filedata.replace("output.h5", out_path)
 
     # Write the file out again
     with open(os.path.join(temp_directory,voreen_workspace), 'w') as file:
@@ -47,9 +52,17 @@ def extract_vessel_graph(volume_path: str, outdir: str, tempdir: str, cachedir:s
     os.system(f'cd {voreen_tool_path} ; ./voreentool \
         --workspace {workspace_file} \
         -platform minimal --trigger-volumesaves --trigger-geometrysaves  --trigger-imagesaves \
-        --workdir {outdir} --tempdir {tempdir} --cachedir {cachedir} \
-        ; rm -r {absolute_temp_path}'
+        --workdir {outdir} --tempdir {tempdir} --cachedir {cachedir}'
     )
+    with h5py.File(out_path, "r") as f:
+        # Print all root level object names (aka keys) 
+        # these can be group or dataset names 
+        a_group_key = list(f.keys())[0]
+        ds_arr = f[a_group_key][()]  # returns as a numpy array
+    os.system(f'rm -r {absolute_temp_path}')
+    ret = ds_arr[1]
+    ret = np.flip(np.rot90(ret),0)
+    return ret
 
 if __name__ == "__main__":
     import argparse
