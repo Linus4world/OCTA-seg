@@ -44,18 +44,24 @@ class Visualizer():
                     d["metric"] = {k: float(v) for k,v in list(row.items())[3:]}
                     self.track_record.append(d)
                     self.epochs.append(int(row["epoch"]))
+            if self.save_to_tensorboard:
+                self.tb = SummaryWriter(log_dir=self.save_dir)
+                for epoch,metric_groups in zip(self.epochs,self.track_record):
+                    for title,record in metric_groups.items():
+                        self.tb.add_scalars(title, record, epoch+1)
+                        for k,v in record.items():
+                            self.tb.add_scalar(k,v,epoch+1)
         else:
             self.save_dir = os.path.join(config["Output"]["save_dir"], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
             os.mkdir(self.save_dir)
+            if self.save_to_tensorboard:
+                self.tb = SummaryWriter(log_dir=self.save_dir)
+        
         config["Output"]["save_dir"] = self.save_dir
         config["Test"]["save_dir"] = os.path.join(self.save_dir, 'test/')
         config["Test"]["model_path"] = os.path.join(self.save_dir, 'best_metric_model.pth')
         with open(os.path.join(self.save_dir, 'config.json'), 'w') as f:
             json.dump(config, f, ensure_ascii=False, indent=4)
-
-        if self.save_to_tensorboard:
-            self.tb = SummaryWriter(log_dir=self.save_dir)
-
 
     def _prepare_log_file(self, record: dict[str, dict[str, float]]):
         titles = [title for v in record.values() for title in v]
@@ -116,12 +122,13 @@ class Visualizer():
                     self.tb.add_scalar(k,v,epoch+1)
 
     def plot_clf_sample(self, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor, number: int = None):
-        input = input.squeeze().detach().cpu().numpy()
+        input = input.squeeze(1).detach().cpu().numpy()
         input = (input * 255).astype(np.uint8)
         if self.save_to_disk or self.save_to_tensorboard:
             inches = get_fig_size(input)/2
-            fig = plt.subplots(1, input.shape[0], figsize=(input.shape[0]*inches, inches))[0]
-            for i in range(3):
+            n = min(3,input.shape[0])
+            fig = plt.subplots(1, n, figsize=(n*inches, inches))[0]
+            for i in range(n):
                 fig.axes[i].set_title(f"Pred: {np.round(pred[i].detach().cpu().numpy(),2)}, Real: {truth[i].detach().cpu().numpy()}")
                 fig.axes[i].imshow(input[i])#, cmap='Greys')
             if number is not None:
@@ -199,10 +206,10 @@ class Visualizer():
         if self.save_to_tensorboard:
             self.tb.add_graph(model, batch)
 
-    def save_model(self, model: torch.nn.Module):
+    def save_model(self, model: torch.nn.Module, prefix: str):
         torch.save(
             model.state_dict(),
-            os.path.join(self.save_dir, "best_metric_model.pth"),
+            os.path.join(self.save_dir, f"{prefix}_model.pth"),
         )
 
     def log_model_params(self, model: torch.nn.Module, epoch: int):
