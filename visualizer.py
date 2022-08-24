@@ -121,7 +121,7 @@ class Visualizer():
                 for k,v in record.items():
                     self.tb.add_scalar(k,v,epoch+1)
 
-    def plot_clf_sample(self, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor, number: int = None):
+    def plot_clf_sample(self, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor, suffix: int = None):
         input = input.squeeze(1).detach().cpu().numpy()
         input = (input * 255).astype(np.uint8)
         if self.save_to_disk or self.save_to_tensorboard:
@@ -131,17 +131,17 @@ class Visualizer():
             for i in range(n):
                 fig.axes[i].set_title(f"Pred: {np.round(pred[i].detach().cpu().numpy(),2)}, Real: {truth[i].detach().cpu().numpy()}")
                 fig.axes[i].imshow(input[i])#, cmap='Greys')
-            if number is not None:
-                number = '_'+str(number)
+            if suffix is not None:
+                suffix = '_'+suffix
             else:
-                number=''
-            plt.savefig(os.path.join(self.save_dir, f'sample{number}.png'), bbox_inches='tight')
+                suffix=''
+            plt.savefig(os.path.join(self.save_dir, f'sample{suffix}.png'), bbox_inches='tight')
         if self.save_to_tensorboard:
             self.tb.add_figure('sample', fig)
         elif self.save_to_disk:
             plt.close()
 
-    def plot_sample(self,input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor = None, number: int = None):
+    def plot_sample(self,input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor = None, suffix: str = None):
         """
         Create a 3x1 (or 2x1 if no truth tensor is supplied) grid from the given 2D image tensors and save the image with the given number as label.
         If save_to_disk is true, create a matpyplot figure.
@@ -170,11 +170,11 @@ class Visualizer():
                 fig.axes[2].set_title("Truth")
                 fig.axes[2].imshow(truth)#, cmap='Greys')
 
-            if number is not None:
-                number = '_'+str(number)
+            if suffix is not None:
+                suffix = '_'+suffix
             else:
-                number=''
-            plt.savefig(os.path.join(self.save_dir, f'sample{number}.png'), bbox_inches='tight')
+                suffix=''
+            plt.savefig(os.path.join(self.save_dir, f'sample{suffix}.png'), bbox_inches='tight')
             plt.close()
 
         if self.save_to_tensorboard:

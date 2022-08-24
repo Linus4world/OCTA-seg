@@ -41,6 +41,9 @@ loss_function = get_loss_function(task, config)
 
 set_determinism(seed=0)
 
+def model_2_str(model):
+    return str(model).split(' ')[1]
+
 search_space = {
     "model": [DenseNet121, DenseNet169],
     "dropout_prob": [0, 0.1],
@@ -118,20 +121,18 @@ def train_model_i(config_i: dict, config: dict):
                 epoch_metrics["metric"].update(metrics.aggregate_and_reset(prefix="val"))
 
                 metric_comp =  epoch_metrics["metric"][metrics.get_comp_metric('val')]
-
+                visualizer.save_model(model, 'latest')
                 if metric_comp > best_metric:
                     best_metric = metric_comp
-                    visualizer.save_model(model)
+                    visualizer.save_model(model, 'best')
                 visualizer.plot_losses_and_metrics(epoch_metrics, epoch)
-    config_i["model"] = str(params[0]).split('.')[-1].split('\'')[0]
+    config_i["model"] = model_2_str(params[0])
     visualizer.save_hyperparams(config_i, {metrics.get_comp_metric('val'): best_metric})
-    visualizer.close_figures()
 
 param_values = [v for v in search_space.values()]
 t = list(product(*param_values))
 main_loop = tqdm(t)
 for params in main_loop:
-    params_titles = [str(params[0]).split('.')[-1].split('\'')[0], *params[1:]]
+    params_titles = [model_2_str(params[0]), *params[1:]]
     main_loop.set_description(','.join([str(p) for p in params_titles]))
     train_model_i({k: p for k,p in zip(search_space.keys(), params)}, copy.deepcopy(config))
-

@@ -105,6 +105,10 @@ for epoch in epoch_tqdm:
     }
     epoch_metrics["metric"] = metrics.aggregate_and_reset(prefix="train")
     epoch_tqdm.set_description(f'avg train loss: {epoch_loss:.4f}')
+    if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+        visualizer.plot_sample(inputs, outputs, labels, suffix='train')
+    else:
+        visualizer.plot_clf_sample(inputs, outputs, labels, suffix='train')
 
     if (epoch + 1) % val_interval == 0:
         model.eval()
@@ -129,17 +133,18 @@ for epoch in epoch_tqdm:
 
             metric_comp =  epoch_metrics["metric"][metrics.get_comp_metric('val')]
 
+            visualizer.save_model(model, 'latest')
             if metric_comp > best_metric:
                 best_metric = metric_comp
                 best_metric_epoch = epoch + 1
-                visualizer.save_model(model)
+                visualizer.save_model(model, 'best_metric')
 
             visualizer.plot_losses_and_metrics(epoch_metrics, epoch)
             if epoch%config["Output"]["save_interval"] == 0:
                 if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
-                    visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], number= None if best_metric>metric_comp else 'best')
+                    visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], suffix= None if best_metric>metric_comp else 'best')
                 else:
-                    visualizer.plot_clf_sample(val_inputs, val_outputs, val_labels, number= None if best_metric>metric_comp else 'best')
+                    visualizer.plot_clf_sample(val_inputs, val_outputs, val_labels, suffix= None if best_metric>metric_comp else 'best')
     visualizer.log_model_params(model, epoch)
 
 total_time = time.time() - total_start

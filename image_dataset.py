@@ -36,8 +36,8 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
                 RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=[0,1]),
                 RandCropOrPadd(keys=["image", "label"], prob=0.5, min_factor=0.8, max_factor=1.2),
-                RandRotate90d(keys=["image", "label"], prob=1),
-                RandRotated(keys=["image", "label"], range_x=10),
+                RandRotate90d(keys=["image", "label"], prob=.75),
+                RandRotated(keys=["image", "label"], range_x=deg2rad(10)),
                 Rand2DElasticd(keys=["image", "label"], prob=.5, spacing=(20,20), magnitude_range=(2,4), padding_mode='zeros'),
                 AddLineArtifact(keys=["image"]),
                 AsDiscreted(keys=["label"], threshold=0.001),
@@ -70,21 +70,27 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 LoadImaged(keys=["image"], image_only=True),
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
                 AddChanneld(keys=["image"]),
-                RandFlipd(keys=["image"], prob=0.1, spatial_axis=[0, 1]),
+                RandFlipd(keys=["image"], prob=.5, spatial_axis=[0, 1]),
+                RandRotate90d(keys=["image"], prob=.75),
+                RandRotated(keys=["image"], prob=1, range_x=deg2rad(10), padding_mode="zeros"),
                 CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
         elif phase == "validation":
             return Compose([
                 LoadImaged(keys=["image"], image_only=True),
-                AddChanneld(keys=["image"]),
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                AddChanneld(keys=["image"]),
+                Flipd(keys=["image"], spatial_axis=0),
+                Rotate90d(keys=["image"], k=1),
                 CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
         else:
             return Compose([
                 LoadImaged(keys=["image"], image_only=True),
-                AddChanneld(keys=["image"]),
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                AddChanneld(keys=["image"]),
+                Flipd(keys=["image"], spatial_axis=0),
+                Rotate90d(keys=["image"], k=1),
                 CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
 
