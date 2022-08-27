@@ -35,7 +35,7 @@
         "save_images": false
     },
     "Output": {
-        "save_dir": "/home/lkreitner/OCTA-seg/results/",
+        "save_dir": "/home/lkreitner/OCTA-seg/results/ret-clf/",
         "save_to_disk": true,
         "save_to_tensorboard": true,
         "save_interval": 1

@@ -30,7 +30,7 @@
         "save_images": false
     },
     "Output": {
-        "save_dir": "/home/lkreitner/OCTA-seg/results/grid_search/",
+        "save_dir": "/home/lkreitner/OCTA-seg/results/ret-clf/grid_search/",
         "save_to_disk": true,
         "save_to_tensorboard": true,
         "save_interval": 1
