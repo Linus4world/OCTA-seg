@@ -12,6 +12,7 @@ class Task(Enum):
     AREA_SEGMENTATION = "area-seg"
     IMAGE_QUALITY_CLASSIFICATION = "img-qual-clf"
     RETINOPATHY_CLASSIFICATION = "ret-clf"
+    VESSEL_SEGMENTATION_THEN_RETINOPATHY_CLASSIFICATION = "ves-seg-ret-clf"
 
 def confusion_matrix(rater_a, rater_b, min_rating=None, max_rating=None):
     assert(len(rater_a) == len(rater_b))

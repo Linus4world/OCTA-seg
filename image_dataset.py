@@ -35,10 +35,14 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 # AddRandomNoised(noise_layer_path=config["Data"]["noise_map_path"]),
                 AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
                 RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=[0,1]),
-                RandCropOrPadd(keys=["image", "label"], prob=0.5, min_factor=0.8, max_factor=1.2),
+                RandCropOrPadd(keys=["image", "label"], prob=0.5, min_factor=0.5, max_factor=1.5),
                 RandRotate90d(keys=["image", "label"], prob=.75),
                 RandRotated(keys=["image", "label"], range_x=deg2rad(10)),
-                Rand2DElasticd(keys=["image", "label"], prob=.5, spacing=(20,20), magnitude_range=(2,4), padding_mode='zeros'),
+                Rand2DElasticd(keys=["image", "label"], prob=.5, spacing=(30,30), magnitude_range=(1,3), padding_mode='zeros'),
+                # Resized(keys=["image", "label"], shape=(304,304)),
+                Resized(keys=["image", "label"], shape=(1024,1024)),
+                RandAdjustContrastd(keys=["image"], prob=0.5, gamma=(0.5,4.5)),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
                 AddLineArtifact(keys=["image"]),
                 AsDiscreted(keys=["label"], threshold=0.001),
                 CastToTyped(keys=["image", "label"], dtype=dtype)
@@ -64,7 +68,7 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 Flip(0),
                 CastToType(dtype=dtype)
             ])
-    else:
+    elif task == Task.RETINOPATHY_CLASSIFICATION.value:
         if phase == "train":
             return Compose([
                 LoadImaged(keys=["image"], image_only=True),
@@ -73,6 +77,49 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 RandFlipd(keys=["image"], prob=.5, spatial_axis=[0, 1]),
                 RandRotate90d(keys=["image"], prob=.75),
                 RandRotated(keys=["image"], prob=1, range_x=deg2rad(10), padding_mode="zeros"),
+                RandCropOrPadd(keys=["image"], prob=1, min_factor=0.7, max_factor=1.3),
+                Resized(keys=["image"], shape=[1024,1024]),
+                Rand2DElasticd(keys=["image"], prob=.5, spacing=(40,40), magnitude_range=(1,2), padding_mode='zeros'),
+                RandAdjustContrastd(keys=["image"], prob=1, gamma=(0.5,1.5)),
+                # RandBiasFieldd(keys=["image"], prob=0.1, degree=3, coeff_range=(0.1,0.3)),
+                RandGaussianSmoothd(keys=["image"], prob=0.1, sigma_x=(0.25, 1.5), sigma_y=(0.25, 1.5)),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
+            ])
+        elif phase == "validation":
+            return Compose([
+                LoadImaged(keys=["image"], image_only=True),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                AddChanneld(keys=["image"]),
+                Flipd(keys=["image"], spatial_axis=0),
+                Rotate90d(keys=["image"], k=1),
+                CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
+            ])
+        else:
+            return Compose([
+                LoadImaged(keys=["image"], image_only=True),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                AddChanneld(keys=["image"]),
+                Flipd(keys=["image"], spatial_axis=0),
+                Rotate90d(keys=["image"], k=1),
+                CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
+            ])
+    elif task == Task.IMAGE_QUALITY_CLASSIFICATION.value:
+        if phase == "train":
+            return Compose([
+                LoadImaged(keys=["image"], image_only=True),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                AddChanneld(keys=["image"]),
+                RandFlipd(keys=["image"], prob=.5, spatial_axis=[0, 1]),
+                RandRotate90d(keys=["image"], prob=.75),
+                # RandRotated(keys=["image"], prob=1, range_x=deg2rad(10), padding_mode="zeros"),
+                # RandCropOrPadd(keys=["image"], prob=1, min_factor=0.7, max_factor=1.3),
+                Resized(keys=["image"], shape=[1024,1024]),
+                Rand2DElasticd(keys=["image"], prob=.5, spacing=(40,40), magnitude_range=(1,2), padding_mode='zeros'),
+                RandAdjustContrastd(keys=["image"], prob=1, gamma=(0.5,1.5)),
+                # RandBiasFieldd(keys=["image"], prob=0.1, degree=3, coeff_range=(0.1,0.3)),
+                RandGaussianSmoothd(keys=["image"], prob=0.1, sigma_x=(0.25, 1.5), sigma_y=(0.25, 1.5)),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
                 CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
         elif phase == "validation":
@@ -123,14 +170,19 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
         image_paths = array(image_paths)[indices].tolist()
         train_files = image_paths
     else:
-        reader = csv.reader(open(config["Data"]["dataset_labels"], 'r'))
-        next(reader)
-        labels = [int(v) for k, v in reader]
-        labels = list(array(labels)[indices])
-
         image_paths = get_custom_file_paths(*data_path)
         image_paths = list(array(image_paths)[indices])
-        train_files = [{"image": img, "label": torch.tensor(label)} for img, label in zip(image_paths, labels)]
+
+        if config["Data"]["dataset_labels"] != '':
+            reader = csv.reader(open(config["Data"]["dataset_labels"], 'r'))
+            next(reader)
+            labels = [int(v) for k, v in reader]
+            labels = list(array(labels)[indices])
+            train_files = [{"image": img, "path": img, "label": torch.tensor(label)} for img, label in zip(image_paths, labels)]
+        else:
+            train_files = [{"image": img, "path": img} for img in image_paths]
+
+
     data_set = Dataset(train_files, transform=transform)
-    loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=True, num_workers=4, pin_memory=torch.cuda.is_available())
+    loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=4, pin_memory=torch.cuda.is_available())
     return loader

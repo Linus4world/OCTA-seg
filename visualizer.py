@@ -59,7 +59,7 @@ class Visualizer():
         
         config["Output"]["save_dir"] = self.save_dir
         config["Test"]["save_dir"] = os.path.join(self.save_dir, 'test/')
-        config["Test"]["model_path"] = os.path.join(self.save_dir, 'best_metric_model.pth')
+        config["Test"]["model_path"] = os.path.join(self.save_dir, 'best_model.pth')
         with open(os.path.join(self.save_dir, 'config.json'), 'w') as f:
             json.dump(config, f, ensure_ascii=False, indent=4)
 
@@ -158,7 +158,7 @@ class Visualizer():
         pred = (pred * 255).astype(np.uint8)
         
         if self.save_to_disk:
-            inches = get_fig_size(input)
+            inches = get_fig_size(input) / 2
             fig, _ = plt.subplots(1, 3, figsize=(3*inches, inches))
             fig.axes[0].set_title("Input")
             fig.axes[0].imshow(input)#, cmap='Greys')
@@ -206,16 +206,21 @@ class Visualizer():
         if self.save_to_tensorboard:
             self.tb.add_graph(model, batch)
 
-    def save_model(self, model: torch.nn.Module, prefix: str):
+    def save_model(self, model: torch.nn.Module, optimizer: torch.optim.Optimizer, epoch: int, prefix: str):
         torch.save(
-            model.state_dict(),
+            {
+                'epoch': epoch,
+                'model': model.state_dict(),
+                'optimizer': optimizer.state_dict()
+            },
             os.path.join(self.save_dir, f"{prefix}_model.pth"),
         )
 
     def log_model_params(self, model: torch.nn.Module, epoch: int):
         for name, weight in model.named_parameters():
             self.tb.add_histogram(name,weight, epoch)
-            self.tb.add_histogram(f'{name}.grad',weight.grad, epoch)
+            if not any(torch.isnan(weight.grad)):
+                self.tb.add_histogram(f'{name}.grad',weight.grad, epoch)
 
     def save_hyperparams(self, params: dict, metrics):
         self.tb.add_hparams(params, metrics)
@@ -234,7 +239,7 @@ def plot_sample(save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: t
         truth = truth.squeeze().detach().cpu().numpy()
         truth = (truth * 255).astype(np.uint8)
 
-    inches = get_fig_size(input)/2
+    inches = get_fig_size(input)
     n = 2 if truth is None else 3
     fig, _ = plt.subplots(1, n, figsize=(n*inches, inches))
     plt.cla()
@@ -317,3 +322,10 @@ def graph_file_to_img(filepath: str, shape: tuple[int]):
         for voxel in node["voxels_"]:
             img[int(voxel[0])-1:int(voxel[0])+2, int(voxel[1])-1:int(voxel[1])+2] = 0.5
     return img
+
+def save_prediction_csv(save_dir: str, predictions: list[list]):
+    with open(os.path.join(save_dir, 'predictions.csv'), 'w+') as file:
+            writer = csv.writer(file)
+            writer.writerow(["case","class", "P0", "P1", "P2"])
+            for prediction in predictions:
+                writer.writerow(prediction)

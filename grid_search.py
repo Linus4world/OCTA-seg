@@ -8,7 +8,7 @@ import copy
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
 from monai.utils import set_determinism
-from monai.networks.nets import DenseNet121, DenseNet169, DenseNet201, DenseNet
+from networks import ResNet, resnet18, resnet50
 from tqdm import tqdm
 
 from image_dataset import get_dataset, get_post_transformation
@@ -45,20 +45,18 @@ def model_2_str(model):
     return str(model).split(' ')[1]
 
 search_space = {
-    "model": [DenseNet121, DenseNet169],
-    "dropout_prob": [0, 0.1],
-    "weight_decay": [0, 1e-5],
-    "lr": [2e-4, 1e-4, 5e-5],
-    "batch_size": [4,2]
+    "model": [resnet18],
+    "lr": [1e-3, 3e-3, 5e-3],
+    "batch_size": [2,4]
 }
 
 def train_model_i(config_i: dict, config: dict):
     config["GRID_SEARCH"] = dict(config_i)
-    config["GRID_SEARCH"]["model"] = str(params[0]).split('.')[-1].split('\'')[0]
+    config["GRID_SEARCH"]["model"] = model_2_str(params[0])
     visualizer = Visualizer(config)
-    model: DenseNet = config_i["model"](spatial_dims=2, in_channels=1, out_channels=config["Data"]["num_classes"], dropout_prob=config_i["dropout_prob"]).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), config_i["lr"], weight_decay=config_i["weight_decay"])
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
+    model: ResNet = config_i["model"](num_classes=config["Data"]["num_classes"]).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), config_i["lr"])
+    # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
     metrics = MetricsManager(task)
     train_loader = get_dataset(config, 'train', batch_size=config_i["batch_size"])
 
@@ -90,7 +88,7 @@ def train_model_i(config_i: dict, config: dict):
             scaler.update()
             epoch_loss += loss.item()
             mini_batch_tqdm.set_description(f'train_loss: {loss.item():.4f}')
-        lr_scheduler.step()
+        # lr_scheduler.step()
 
         epoch_loss /= step
         epoch_metrics["loss"] = {
@@ -121,10 +119,10 @@ def train_model_i(config_i: dict, config: dict):
                 epoch_metrics["metric"].update(metrics.aggregate_and_reset(prefix="val"))
 
                 metric_comp =  epoch_metrics["metric"][metrics.get_comp_metric('val')]
-                visualizer.save_model(model, 'latest')
+                visualizer.save_model(model, optimizer, epoch, 'latest')
                 if metric_comp > best_metric:
                     best_metric = metric_comp
-                    visualizer.save_model(model, 'best')
+                    visualizer.save_model(model, optimizer, epoch, 'best')
                 visualizer.plot_losses_and_metrics(epoch_metrics, epoch)
     config_i["model"] = model_2_str(params[0])
     visualizer.save_hyperparams(config_i, {metrics.get_comp_metric('val'): best_metric})
