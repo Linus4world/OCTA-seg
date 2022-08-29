@@ -1,13 +1,11 @@
 
-from enum import Enum
-
 import numpy as np
 import torch
 from monai.metrics import DiceMetric, MeanIoU, ROCAUCMetric
 from cl_dice_loss import clDiceLoss
 
 
-class Task(Enum):
+class Task:
     VESSEL_SEGMENTATION = "ves-seg"
     AREA_SEGMENTATION = "area-seg"
     IMAGE_QUALITY_CLASSIFICATION = "img-qual-clf"
@@ -87,13 +85,13 @@ class QuadraticWeightedKappa:
 
 class MetricsManager():
     def __init__(self, task: Task):
-        if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+        if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
             self.metrics = {
                 "DSC": DiceMetric(include_background=True, reduction="mean"),
                 "IoU": MeanIoU(include_background=True, reduction="mean")
             }
             self.comp = "DSC"
-        elif task == Task.IMAGE_QUALITY_CLASSIFICATION.value or task == Task.RETINOPATHY_CLASSIFICATION.value:
+        elif task == Task.IMAGE_QUALITY_CLASSIFICATION or task == Task.RETINOPATHY_CLASSIFICATION:
             self.metrics =  {
                 "QwK": QuadraticWeightedKappa(),
                 "ROC_AUC": ROCAUCMetric(average="macro")
@@ -115,7 +113,7 @@ class MetricsManager():
         return f'{prefix}_{self.comp}'
 
 def get_loss_function(task: Task, config: dict):
-    if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+    if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
         return clDiceLoss(alpha=config["Train"]["lambda_cl_dice"], sigmoid=True)
     else:
         return torch.nn.CrossEntropyLoss()

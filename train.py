@@ -46,7 +46,7 @@ post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]
 num_layers = config["General"]["num_layers"]
 kernel_size = config["General"]["kernel_size"]
 pre_model = None
-if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
     model = DynUNet(
         spatial_dims=2,
         in_channels=1,
@@ -55,7 +55,7 @@ if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.valu
         strides=(1,*[2]*num_layers,1),
         upsample_kernel_size=(1,*[2]*num_layers,1),
     ).to(device)
-elif task == Task.VESSEL_SEGMENTATION_THEN_RETINOPATHY_CLASSIFICATION.value:
+elif task == Task.VESSEL_SEGMENTATION_THEN_RETINOPATHY_CLASSIFICATION:
     pre_model =  model = DynUNet(
         spatial_dims=2,
         in_channels=1,
@@ -139,7 +139,7 @@ for epoch in epoch_tqdm:
     }
     epoch_metrics["metric"] = metrics.aggregate_and_reset(prefix="train")
     epoch_tqdm.set_description(f'avg train loss: {epoch_loss:.4f}')
-    if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+    if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
         visualizer.plot_sample(inputs[0], outputs[0], labels[0], suffix='train')
     else:
         visualizer.plot_clf_sample(inputs, outputs, labels, suffix='train')
@@ -181,7 +181,7 @@ for epoch in epoch_tqdm:
 
             visualizer.plot_losses_and_metrics(epoch_metrics, epoch)
             if epoch%config["Output"]["save_interval"] == 0:
-                if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+                if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
                     visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], suffix= None if best_metric>metric_comp else 'best')
                 else:
                     visualizer.plot_clf_sample(val_inputs, val_outputs, val_labels, suffix= None if best_metric>metric_comp else 'best')

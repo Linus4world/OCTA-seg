@@ -13,11 +13,12 @@
             "/home/shared/Data/DRAC22/A. Segmentation/2. Groundtruths/a. Training Set/2. Nonperfusion Areas",
             "/home/shared/Data/DRAC22/A. Segmentation/2. Groundtruths/a. Training Set/3. Neovascularization"
         ],
-        "num_classes": 1
+        "num_classes": 3
     },
     "Train": {
         "dataset_path": "/home/lkreitner/OCTA-seg/datasets/DRAC_A/train.txt",
-        "epochs": 60,
+        "epochs": 200,
+        "epochs_decay": 0,
         "val_interval": 1,
         "batch_size": 4,
         "lambda_cl_dice": 0,

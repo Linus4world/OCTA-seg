@@ -41,7 +41,7 @@ scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 # Model
 pre_model = None
-if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
     num_layers = config["General"]["num_layers"]
     kernel_size = config["General"]["kernel_size"]
     model = DynUNet(
@@ -52,7 +52,7 @@ if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.valu
         strides=(1,*[2]*num_layers,1),
         upsample_kernel_size=(1,*[2]*num_layers,1),
     ).to(device)
-elif task == Task.VESSEL_SEGMENTATION_THEN_RETINOPATHY_CLASSIFICATION.value:
+elif task == Task.VESSEL_SEGMENTATION_THEN_RETINOPATHY_CLASSIFICATION:
     num_layers = config["General"]["num_layers"]
     kernel_size = config["General"]["kernel_size"]
     pre_model =  model = DynUNet(
@@ -83,7 +83,7 @@ with torch.no_grad():
         if num_sample>=config["Test"]["num_samples"]:
             break
         num_sample+=1
-        if task == Task.VESSEL_SEGMENTATION.value:
+        if task == Task.VESSEL_SEGMENTATION:
             val_inputs = test_data.to(device)
         else:
             val_inputs = test_data["image"].to(device)
@@ -97,7 +97,7 @@ with torch.no_grad():
             val_outputs = model(val_inputs)
         val_outputs = [post_trans(i).cpu() for i in decollate_batch(val_outputs)]
 
-        if task == Task.VESSEL_SEGMENTATION.value:
+        if task == Task.VESSEL_SEGMENTATION:
             clean_seg = extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)
             graph_file = os.path.join(config["Test"]["save_dir"], f'sample_{num_sample}_graph.json')
             graph_img = graph_file_to_img(graph_file, val_outputs[0].shape[-2:])
@@ -109,6 +109,6 @@ with torch.no_grad():
                 if difference!=0:
                     idx = np.argsort(predictions[-1][2:])[-2]+2
                     predictions[-1][idx] = predictions[-1][idx]-difference
-    if task == Task.RETINOPATHY_CLASSIFICATION.value or Task.IMAGE_QUALITY_CLASSIFICATION.value:
+    if task == Task.RETINOPATHY_CLASSIFICATION or Task.IMAGE_QUALITY_CLASSIFICATION:
         save_prediction_csv(config["Test"]["save_dir"], predictions)
         # plot_sample(config["Test"]["save_dir"], val_inputs[0], torch.tensor(clean_seg), graph_img, number=num_sample)

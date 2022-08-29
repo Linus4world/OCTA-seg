@@ -25,7 +25,7 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
     """
     Create and return the data transformations for 2D segmentation images the given phase.
     """
-    if task == Task.VESSEL_SEGMENTATION.value:
+    if task == Task.VESSEL_SEGMENTATION:
         if phase == "train":
             return Compose([
                 LoadImage(image_only=True),
@@ -68,7 +68,7 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 Flip(0),
                 CastToType(dtype=dtype)
             ])
-    elif task == Task.RETINOPATHY_CLASSIFICATION.value:
+    elif task == Task.RETINOPATHY_CLASSIFICATION:
         if phase == "train":
             return Compose([
                 LoadImaged(keys=["image"], image_only=True),
@@ -104,7 +104,7 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 Rotate90d(keys=["image"], k=1),
                 CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
-    elif task == Task.IMAGE_QUALITY_CLASSIFICATION.value:
+    elif task == Task.IMAGE_QUALITY_CLASSIFICATION:
         if phase == "train":
             return Compose([
                 LoadImaged(keys=["image"], image_only=True),
@@ -145,7 +145,7 @@ def get_post_transformation(task: Task, num_classes=2) -> tuple[Compose]:
     """
     Create and return the data transformation that is applied to the model prediction before inference.
     """
-    if task == Task.VESSEL_SEGMENTATION.value or task == Task.AREA_SEGMENTATION.value:
+    if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([])
     else:
         return Compose([Activations(softmax=True)]), Compose([AsDiscrete(to_onehot=num_classes)])
@@ -165,14 +165,13 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
     with open(config[phase.capitalize()]["dataset_path"], 'r') as f:
         lines = f.readlines()
         indices = [int(line.rstrip()) for line in lines]
-    if task == Task.VESSEL_SEGMENTATION.value:
-        image_paths = get_custom_file_paths(*data_path)
-        image_paths = array(image_paths)[indices].tolist()
-        train_files = image_paths
-    else:
-        image_paths = get_custom_file_paths(*data_path)
-        image_paths = list(array(image_paths)[indices])
 
+    image_paths = get_custom_file_paths(*data_path)
+    image_paths = array(image_paths)[indices].tolist()
+
+    if task == Task.VESSEL_SEGMENTATION:
+        train_files = image_paths
+    elif task == Task.RETINOPATHY_CLASSIFICATION or task == Task.IMAGE_QUALITY_CLASSIFICATION:
         if config["Data"]["dataset_labels"] != '':
             reader = csv.reader(open(config["Data"]["dataset_labels"], 'r'))
             next(reader)
