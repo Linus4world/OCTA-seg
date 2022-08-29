@@ -13,7 +13,7 @@ from networks import resnet18
 from image_dataset import get_dataset, get_post_transformation
 from metrics import Task
 
-from visualizer import extract_vessel_graph_features, graph_file_to_img, plot_sample, save_prediction_csv
+from visualizer import plot_sample, save_prediction_csv
 
 # Parse input arguments
 parser = argparse.ArgumentParser(description='')
@@ -37,13 +37,41 @@ post_trans, _ = get_post_transformation(task)
 VAL_AMP = config["General"]["amp"]
 # use amp to accelerate training
 scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
-
 device = torch.device(config["General"]["device"])
+
+USE_SEG_INPUT = config["Train"]["model_path"] != ''
+
 # Model
-pre_model = None
-if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
-    num_layers = config["General"]["num_layers"]
-    kernel_size = config["General"]["kernel_size"]
+num_layers = config["General"]["num_layers"]
+kernel_size = config["General"]["kernel_size"]
+if USE_SEG_INPUT:
+    pre_model = DynUNet(
+        spatial_dims=2,
+        in_channels=1,
+        out_channels=1,
+        kernel_size=(3, *[kernel_size]*num_layers,3),
+        strides=(1,*[2]*num_layers,1),
+        upsample_kernel_size=(1,*[2]*num_layers,1),
+    ).to(device)
+    checkpoint = torch.load(config["Train"]["model_path"])
+    if hasattr(checkpoint, 'model'):
+        pre_model.load_state_dict(checkpoint['model'])
+    else:
+        pre_model.load_state_dict(checkpoint)
+    pre_model.eval()
+    post_itermediate, _ = get_post_transformation(Task.VESSEL_SEGMENTATION, num_classes=config["Data"]["num_classes"])
+
+    def calculate_itermediate(inputs: torch.Tensor):
+        with torch.no_grad():
+            intermediate = pre_model(inputs)
+            intermediate = torch.stack([post_itermediate(inter) for inter in intermediate])
+            intermediate = torch.cat([inputs,intermediate], dim=1)
+            return intermediate
+else:
+    def calculate_itermediate(inputs: torch.Tensor):
+        return inputs
+
+if task == Task.VESSEL_SEGMENTATION:
     model = DynUNet(
         spatial_dims=2,
         in_channels=1,
@@ -52,24 +80,17 @@ if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
         strides=(1,*[2]*num_layers,1),
         upsample_kernel_size=(1,*[2]*num_layers,1),
     ).to(device)
-elif task == Task.VESSEL_SEGMENTATION_THEN_RETINOPATHY_CLASSIFICATION:
-    num_layers = config["General"]["num_layers"]
-    kernel_size = config["General"]["kernel_size"]
-    pre_model =  model = DynUNet(
+elif task == Task.AREA_SEGMENTATION:
+    model = DynUNet(
         spatial_dims=2,
-        in_channels=1,
+        in_channels= 2 if USE_SEG_INPUT else 1,
         out_channels=config["Data"]["num_classes"],
         kernel_size=(3, *[kernel_size]*num_layers,3),
         strides=(1,*[2]*num_layers,1),
         upsample_kernel_size=(1,*[2]*num_layers,1),
     ).to(device)
-    checkpoint = torch.load(config["Train"]["model_path"])
-    pre_model.load_state_dict(checkpoint["model"])
-    print(f'Loaded pre_model from epoch {checkpoint["epoch"]}')
-    pre_model.eval()
-    model = resnet18(num_classes=config["Data"]["num_classes"], input_channels=2).to(device)
 else:
-    model = resnet18(num_classes=config["Data"]["num_classes"]).to(device)
+    model = resnet18(num_classes=config["Data"]["num_classes"], input_channels=2 if USE_SEG_INPUT else 1).to(device)
 
 predictions = []
 checkpoint = torch.load(config["Test"]["model_path"])
@@ -91,13 +112,8 @@ with torch.no_grad():
         else:
             val_inputs = test_data["image"].to(device)
         with torch.cuda.amp.autocast():
-            if pre_model is not None:
-                intermediate = pre_model(val_inputs)
-                intermediate = torch.stack([torch.tensor(extract_vessel_graph_features(inter)) for inter in intermediate]).to(device=device, dtype=torch.float16 if VAL_AMP else torch.float32)
-                intermediate = torch.cat([val_inputs,intermediate.unsqueeze(1)], dim=1)
-            else:
-                intermediate = val_inputs
-            val_outputs = model(val_inputs)
+            intermediate = calculate_itermediate(val_inputs)
+            val_outputs = model(intermediate)
         val_outputs = [post_trans(i).cpu() for i in decollate_batch(val_outputs)]
 
         if task == Task.VESSEL_SEGMENTATION:
