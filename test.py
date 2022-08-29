@@ -73,8 +73,11 @@ else:
 
 predictions = []
 checkpoint = torch.load(config["Test"]["model_path"])
-model.load_state_dict(checkpoint["model"])
-print(f'Loaded model from epoch {checkpoint["epoch"]}')
+if hasattr(checkpoint, 'model'):
+    model.load_state_dict(checkpoint['model'])
+    print(f'Loaded model from epoch {checkpoint["epoch"]}')
+else:
+    model.load_state_dict(checkpoint)
 model.eval()
 
 with torch.no_grad():
@@ -98,10 +101,10 @@ with torch.no_grad():
         val_outputs = [post_trans(i).cpu() for i in decollate_batch(val_outputs)]
 
         if task == Task.VESSEL_SEGMENTATION:
-            clean_seg = extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)
-            graph_file = os.path.join(config["Test"]["save_dir"], f'sample_{num_sample}_graph.json')
-            graph_img = graph_file_to_img(graph_file, val_outputs[0].shape[-2:])
-            plot_sample(config["Test"]["save_dir"], val_inputs[0], val_outputs[0], graph_img, number=num_sample)
+            # clean_seg = extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)
+            # graph_file = os.path.join(config["Test"]["save_dir"], f'sample_{num_sample}_graph.json')
+            # graph_img = graph_file_to_img(graph_file, val_outputs[0].shape[-2:])
+            plot_sample(config["Test"]["save_dir"], val_inputs[0], val_outputs[0], None, number=num_sample)
         else:
             for i, path in enumerate(test_data["path"]):
                 predictions.append([str(path.split('/')[-1]), np.argmax(val_outputs[i].numpy()), *val_outputs[i].numpy().tolist()])

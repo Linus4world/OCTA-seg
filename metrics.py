@@ -1,8 +1,10 @@
 
+from typing import Union
 import numpy as np
 import torch
 from monai.metrics import DiceMetric, MeanIoU, ROCAUCMetric
 from cl_dice_loss import clDiceLoss
+from monai.losses import DiceLoss
 
 
 class Task:
@@ -83,6 +85,16 @@ class QuadraticWeightedKappa:
     def reset(self):
         self.items = []
 
+class SigmoidDiceBCELoss():
+    def __init__(self):
+        super().__init__()
+        self.bce = torch.nn.BCEWithLogitsLoss()
+        self.dice = DiceLoss(sigmoid=True)
+
+    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+        return (self.dice(y_pred, y) + self.bce(y_pred, y))/2
+       
+
 class MetricsManager():
     def __init__(self, task: Task):
         if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
@@ -112,8 +124,10 @@ class MetricsManager():
     def get_comp_metric(self, prefix: str):
         return f'{prefix}_{self.comp}'
 
-def get_loss_function(task: Task, config: dict):
-    if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
-        return clDiceLoss(alpha=config["Train"]["lambda_cl_dice"], sigmoid=True)
+def get_loss_function(task: Task, config: dict) -> tuple[str, Union[clDiceLoss, SigmoidDiceBCELoss, torch.nn.CrossEntropyLoss]]:
+    if task == Task.VESSEL_SEGMENTATION:
+        return 'clDiceLoss', clDiceLoss(alpha=config["Train"]["lambda_cl_dice"], sigmoid=True)
+    elif task == Task.AREA_SEGMENTATION:
+        return 'DiceBCELoss', SigmoidDiceBCELoss()
     else:
-        return torch.nn.CrossEntropyLoss()
+        return 'CrossEntropyLoss', torch.nn.CrossEntropyLoss()

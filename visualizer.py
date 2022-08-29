@@ -156,18 +156,41 @@ class Visualizer():
 
         pred = pred.squeeze().detach().cpu().numpy()
         pred = (pred * 255).astype(np.uint8)
+
+        if self.save_to_tensorboard:
+            if truth is not None:
+                if (len(pred.shape)==3):
+                    input = np.tile(input[np.newaxis,:,:],[3,1,1])
+                    images = np.stack([input, pred, truth])
+                else:
+                    images = np.expand_dims(np.stack([input, pred, truth]),1)
+                label = "Input, Pred, Truth"
+            else:
+                if (len(pred.shape)==3):
+                    input = np.tile(input[np.newaxis,:,:],[3,1,1])
+                    images = np.stack([input, pred])
+                else:
+                    images = np.expand_dims(np.stack([input, pred]),1)
+                label = "Input, Pred"
+            self.tb.add_images(label, images)
         
         if self.save_to_disk:
             inches = get_fig_size(input) / 2
             fig, _ = plt.subplots(1, 3, figsize=(3*inches, inches))
             fig.axes[0].set_title("Input")
+            if (input.shape[0]==3):
+                input = np.moveaxis(input,0,-1)
             fig.axes[0].imshow(input)#, cmap='Greys')
 
             fig.axes[1].set_title("Prediction")
+            if (pred.shape[0]==3):
+                pred = np.moveaxis(pred,0,-1)
             fig.axes[1].imshow(pred)#, cmap='Greys')
 
             if truth is not None:
                 fig.axes[2].set_title("Truth")
+                if (truth.shape[0]==3):
+                    truth = np.moveaxis(truth,0,-1)
                 fig.axes[2].imshow(truth)#, cmap='Greys')
 
             if suffix is not None:
@@ -176,15 +199,6 @@ class Visualizer():
                 suffix=''
             plt.savefig(os.path.join(self.save_dir, f'sample{suffix}.png'), bbox_inches='tight')
             plt.close()
-
-        if self.save_to_tensorboard:
-            if truth is not None:
-                images = np.expand_dims(np.stack([input, pred, truth]),1)
-                label = "Input, Pred, Truth"
-            else:
-                images = np.expand_dims(np.stack([input, pred]),1)
-                label = "Input, Pred"
-            self.tb.add_images(label, images)
 
     def _count_parameters(self, model: torch.nn.Module):
         table = PrettyTable(["Modules", "Parameters"])
@@ -219,7 +233,7 @@ class Visualizer():
     def log_model_params(self, model: torch.nn.Module, epoch: int):
         for name, weight in model.named_parameters():
             self.tb.add_histogram(name,weight, epoch)
-            if not any(torch.isnan(weight.grad)):
+            if not torch.isnan(weight.grad).any():
                 self.tb.add_histogram(f'{name}.grad',weight.grad, epoch)
 
     def save_hyperparams(self, params: dict, metrics):

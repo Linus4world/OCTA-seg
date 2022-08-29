@@ -140,13 +140,50 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 Rotate90d(keys=["image"], k=1),
                 CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
+    elif task == Task.AREA_SEGMENTATION:
+        if phase == "train":
+            return Compose([
+                LoadImaged(keys=["image", "label"], image_only=True),
+                ScaleIntensityd(keys=["image", "label"], minv=0, maxv=1),
+                AddChanneld(keys=["image"]),
+                RandFlipd(keys=["image", "label"], prob=.5, spatial_axis=[0, 1]),
+                RandRotate90d(keys=["image", "label"], prob=.75),
+                RandRotated(keys=["image", "label"], prob=1, range_x=deg2rad(10), padding_mode="zeros"),
+                RandCropOrPadd(keys=["image", "label"], prob=1, min_factor=0.7, max_factor=1.3),
+                Resized(keys=["image", "label"], shape=[1024,1024]),
+                Rand2DElasticd(keys=["image", "label"], prob=.5, spacing=(40,40), magnitude_range=(1,2), padding_mode='zeros'),
+                RandAdjustContrastd(keys=["image"], prob=1, gamma=(0.7,1.3)),
+                # RandBiasFieldd(keys=["image"], prob=0.1, degree=3, coeff_range=(0.1,0.3)),
+                RandGaussianSmoothd(keys=["image"], prob=0.1, sigma_x=(0.25, 1.5), sigma_y=(0.25, 1.5)),
+                CastToTyped(keys=["image", "label"], dtype=dtype)
+            ])
+        elif phase == "validation":
+            return Compose([
+                LoadImaged(keys=["image", "label"], image_only=True),
+                ScaleIntensityd(keys=["image", "label"], minv=0, maxv=1),
+                AddChanneld(keys=["image"]),
+                Flipd(keys=["image", "label"], spatial_axis=0),
+                Rotate90d(keys=["image", "label"], k=1),
+                CastToTyped(keys=["image", "label"], dtype=dtype)
+            ])
+        else:
+            return Compose([
+                LoadImaged(keys=["image"], image_only=True),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                AddChanneld(keys=["image"]),
+                Flipd(keys=["image"], spatial_axis=0),
+                Rotate90d(keys=["image"], k=1),
+                CastToTyped(keys=["image"], dtype=dtype)
+            ])
 
 def get_post_transformation(task: Task, num_classes=2) -> tuple[Compose]:
     """
     Create and return the data transformation that is applied to the model prediction before inference.
     """
-    if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
-        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([])
+    if task == Task.VESSEL_SEGMENTATION:
+        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), KeepLargestConnectedComponent()]), Compose([CastToType(dtype=torch.uint8)])
+    elif task == task == Task.AREA_SEGMENTATION:
+        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([CastToType(dtype=torch.uint8)])
     else:
         return Compose([Activations(softmax=True)]), Compose([AsDiscrete(to_onehot=num_classes)])
 
@@ -178,6 +215,22 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
             labels = [int(v) for k, v in reader]
             labels = list(array(labels)[indices])
             train_files = [{"image": img, "path": img, "label": torch.tensor(label)} for img, label in zip(image_paths, labels)]
+        else:
+            train_files = [{"image": img, "path": img} for img in image_paths]
+    elif task == Task.AREA_SEGMENTATION:
+        placeholder_path = os.path.join("/".join(config[phase.capitalize()]["dataset_path"].split('/')[:-1]),'placeholder.png')
+        if config["Data"]["dataset_labels"]:
+            train_files = []
+            for img_path in image_paths:
+                name = img_path.split('/')[-1]
+                labels = []
+                for path in config["Data"]["dataset_labels"]:
+                    label_path = os.path.join(path, name)
+                    if os.path.exists(label_path):
+                        labels.append(label_path)
+                    else:
+                        labels.append(placeholder_path)
+                train_files.append({"image": img_path, "path": img_path, "label": labels})
         else:
             train_files = [{"image": img, "path": img} for img in image_paths]
 

@@ -9,6 +9,7 @@ import copy
 from monai.data import decollate_batch
 from monai.utils import set_determinism
 from networks import ResNet, resnet18, resnet50
+from monai.networks.nets import DynUNet
 from tqdm import tqdm
 
 from image_dataset import get_dataset, get_post_transformation
@@ -37,7 +38,7 @@ task: Task = config["General"]["task"]
 val_loader = get_dataset(config, 'validation')
 post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
-loss_function = get_loss_function(task, config)
+loss_name, loss_function = get_loss_function(task, config)
 
 set_determinism(seed=0)
 
@@ -45,16 +46,28 @@ def model_2_str(model):
     return str(model).split(' ')[1]
 
 search_space = {
-    "model": [resnet18],
-    "lr": [1e-3, 3e-3, 5e-3],
-    "batch_size": [2,4]
+    "model": [DynUNet],
+    "lr": [1e-4, 1e-3, 3e-3],
+    "batch_size": [2,4,8]
 }
 
 def train_model_i(config_i: dict, config: dict):
     config["GRID_SEARCH"] = dict(config_i)
     config["GRID_SEARCH"]["model"] = model_2_str(params[0])
     visualizer = Visualizer(config)
-    model: ResNet = config_i["model"](num_classes=config["Data"]["num_classes"]).to(device)
+    if task == Task.AREA_SEGMENTATION:
+        num_layers = config["General"]["num_layers"]
+        kernel_size = config["General"]["kernel_size"]
+        model: DynUNet = DynUNet(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=config["Data"]["num_classes"],
+            kernel_size=(3, *[kernel_size]*num_layers,3),
+            strides=(1,*[2]*num_layers,1),
+            upsample_kernel_size=(1,*[2]*num_layers,1),
+        ).to(device)
+    else:
+        model: ResNet = config_i["model"](num_classes=config["Data"]["num_classes"]).to(device)
     optimizer = torch.optim.Adam(model.parameters(), config_i["lr"])
     # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
     metrics = MetricsManager(task)
@@ -87,12 +100,12 @@ def train_model_i(config_i: dict, config: dict):
             scaler.step(optimizer)
             scaler.update()
             epoch_loss += loss.item()
-            mini_batch_tqdm.set_description(f'train_loss: {loss.item():.4f}')
+            mini_batch_tqdm.set_description(f'train_{loss_name}: {loss.item():.4f}')
         # lr_scheduler.step()
 
         epoch_loss /= step
         epoch_metrics["loss"] = {
-            "train_loss": epoch_loss
+            f"train_{loss_name}": epoch_loss
         }
         epoch_metrics["metric"] = metrics.aggregate_and_reset(prefix="train")
         epoch_tqdm.set_description(f'avg train loss: {epoch_loss:.4f}')
@@ -115,7 +128,7 @@ def train_model_i(config_i: dict, config: dict):
                         val_outputs = [post_pred(i) for i in decollate_batch(val_outputs)]
                         metrics(y_pred=val_outputs, y=val_labels)
 
-                epoch_metrics["loss"]["val_loss"] = val_loss/step
+                epoch_metrics["loss"][f"val_f{loss_name}"] = val_loss/step
                 epoch_metrics["metric"].update(metrics.aggregate_and_reset(prefix="val"))
 
                 metric_comp =  epoch_metrics["metric"][metrics.get_comp_metric('val')]

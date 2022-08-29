@@ -85,7 +85,7 @@ else:
 with torch.no_grad():
     visualizer.save_model_architecture(model, next(iter(train_loader))["image"].to(device=device, dtype=torch.float32))
 
-loss_function = get_loss_function(task, config)
+loss_name, loss_function = get_loss_function(task, config)
 def schedule(step: int):
     if step < max_epochs - config["Train"]["epochs_decay"]:
         return 1
@@ -130,12 +130,12 @@ for epoch in epoch_tqdm:
         scaler.step(optimizer)
         scaler.update()
         epoch_loss += loss.item()
-        mini_batch_tqdm.set_description(f'train_loss: {loss.item():.4f}')
+        mini_batch_tqdm.set_description(f'train_{loss_name}: {loss.item():.4f}')
     lr_scheduler.step()
 
     epoch_loss /= step
     epoch_metrics["loss"] = {
-        "train_loss": epoch_loss
+        f"train_{loss_name}": epoch_loss
     }
     epoch_metrics["metric"] = metrics.aggregate_and_reset(prefix="train")
     epoch_tqdm.set_description(f'avg train loss: {epoch_loss:.4f}')
@@ -168,7 +168,7 @@ for epoch in epoch_tqdm:
                     val_outputs = [post_pred(i) for i in decollate_batch(val_outputs)]
                     metrics(y_pred=val_outputs, y=val_labels)
 
-            epoch_metrics["loss"]["val_loss"] = val_loss/step
+            epoch_metrics["loss"][f"val_{loss_name}"] = val_loss/step
             epoch_metrics["metric"].update(metrics.aggregate_and_reset(prefix="val"))
 
             metric_comp =  epoch_metrics["metric"][metrics.get_comp_metric('val')]
