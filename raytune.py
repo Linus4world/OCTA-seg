@@ -190,7 +190,7 @@ class CustomStopper(tune.Stopper):
                 self.scores[step] = max(self.scores[step], result[METRIC])
             return self.should_stop or (
                 len(self.scores)>self.patience and 
-                max(self.scores[-self.patience:]) < max(self.scores[:-self.patience])+self.tolerance)
+                max(self.scores[step-self.patience:step+1]) < max(self.scores[:step-self.patience])+self.tolerance)
 
         def stop_all(self):
             return self.should_stop
@@ -234,11 +234,11 @@ import hyperopt.hp
 
 scheduler = AsyncHyperBandScheduler(
     time_attr='training_iteration',
-    metric=METRIC,
+    metric=METRIC_LAST_5_MAX,
     mode='max',
     grace_period=50,
     max_t=250,
-    reduction_factor=50
+    reduction_factor=25
 )
 param_space = {
     "lr": hyperopt.hp.uniform("lr",0.00001, 0.01),
@@ -252,18 +252,18 @@ start_config = [{
 }]
 search_alg = HyperOptSearch(
     space=param_space,
-    metric=METRIC,
+    metric=METRIC_LAST_5_MAX,
     mode='max',
     random_state_seed=CONFIG["General"]["seed"],
     points_to_evaluate=start_config
 )
 num_samples = 32
-NAME = "PB2"
+NAME = "ASHA"
 stopper = CustomStopper()
 ############################################
 
 reporter = CLIReporter(
-    metric=METRIC,
+    metric=METRIC_LAST_5_MAX,
     mode="max",
     sort_by_metric=True,
     max_report_frequency=10
@@ -279,7 +279,7 @@ else:
     tuner = tune.Tuner(
         tune.with_resources(
             training_function,
-            {"cpu": 1,"gpu": 1 if args.debug_mode else 0.5}
+            {"cpu": 1,"gpu": 0.5}
         ),
         param_space=CONFIG,
         tune_config=tune.TuneConfig(
