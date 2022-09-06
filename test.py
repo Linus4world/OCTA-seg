@@ -94,7 +94,7 @@ else:
 
 predictions = []
 checkpoint = torch.load(config["Test"]["model_path"])
-if hasattr(checkpoint, 'model'):
+if 'model' in checkpoint:
     model.load_state_dict(checkpoint['model'])
     print(f'Loaded model from epoch {checkpoint["epoch"]}')
 else:

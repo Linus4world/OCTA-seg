@@ -17,7 +17,7 @@ class Visualizer():
     """
     The Visualizer takes care of all output related functionality.
     """
-    def __init__(self, config: dict, continue_train=False) -> None:
+    def __init__(self, config: dict, continue_train=False, USE_SEG_INPUT=False) -> None:
         """
         Create a visualizer class with the given config that takes care of image and metric saving, as well as the interaction with tensorboard.
         """
@@ -36,6 +36,7 @@ class Visualizer():
             self.save_dir = os.path.join(config["Output"]["save_dir"][:-15], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
             os.mkdir(self.save_dir)
             self._copy_log_file(config["Output"]["save_dir"], self.save_dir)
+            self._copy_best_checkpoint(config["Output"]["save_dir"], self.save_dir)
             with open(self.log_file_path, newline='') as csvfile:
                 reader = csv.DictReader(csvfile)
                 for row in reader:
@@ -52,6 +53,11 @@ class Visualizer():
                         for k,v in record.items():
                             self.tb.add_scalar(k,v,epoch+1)
         else:
+            if USE_SEG_INPUT:
+                config["Output"]["save_dir"] = os.path.join(config["Output"]["save_dir"], "pre_ves_seg")
+                if not os.path.isdir(config["Output"]["save_dir"]):
+                    os.mkdir(config["Output"]["save_dir"])
+
             self.save_dir = os.path.join(config["Output"]["save_dir"], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
             os.mkdir(self.save_dir)
             if self.save_to_tensorboard:
@@ -74,6 +80,11 @@ class Visualizer():
         old_log_file_path = os.path.join(old_dir, 'metrics.csv')
         self.log_file_path = os.path.join(new_dir, 'metrics.csv')
         copyfile(old_log_file_path,self.log_file_path)
+
+    def _copy_best_checkpoint(self, old_dir, new_dir):
+        old_best_checkpoint = os.path.join(old_dir, 'best_model.pth')
+        new_best_checkpoint = os.path.join(new_dir, 'best_model.pth')
+        copyfile(old_best_checkpoint,new_best_checkpoint)
 
     def plot_losses_and_metrics(self, metric_groups: dict[str, dict[str, float]], epoch: int):
         """
@@ -123,6 +134,8 @@ class Visualizer():
 
     def plot_clf_sample(self, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor, suffix: int = None):
         input = input.squeeze(1).detach().cpu().numpy()
+        input = input - input.min()
+        input = input / input.max()
         input = (input * 255).astype(np.uint8)
         if self.save_to_disk or self.save_to_tensorboard:
             inches = get_fig_size(input)/2
@@ -148,6 +161,8 @@ class Visualizer():
         If save_to_tensorboard add the images to the current tensorboard
         """
         input = input.squeeze().detach().cpu().numpy()
+        input = input - input.min()
+        input = input / input.max()
         input = (input * 255).astype(np.uint8)
         
         if truth is not None:
@@ -230,6 +245,14 @@ class Visualizer():
             os.path.join(self.save_dir, f"{prefix}_model.pth"),
         )
 
+    def save_tune_checkpoint(path: str, d: dict):
+        path = os.path.join(path, "checkpoint.pth")
+        torch.save(
+            d,
+            path,
+        )
+        return path
+
     def log_model_params(self, model: torch.nn.Module, epoch: int):
         for name, weight in model.named_parameters():
             self.tb.add_histogram(name,weight, epoch)
@@ -244,6 +267,8 @@ def plot_sample(save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: t
     Create a 3x1 (or 2x1 if no truth tensor is supplied) grid from the given 2D image tensors and save the image with the given number as label
     """
     input = input.squeeze().detach().cpu().numpy()
+    input = input - input.min()
+    input = input / input.max()
     input = (input * 255).astype(np.uint8)
         
     pred = pred.squeeze().detach().cpu().numpy()

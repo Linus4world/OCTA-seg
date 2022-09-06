@@ -35,13 +35,13 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 # AddRandomNoised(noise_layer_path=config["Data"]["noise_map_path"]),
                 AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
                 RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=[0,1]),
-                RandCropOrPadd(keys=["image", "label"], prob=0.5, min_factor=0.5, max_factor=1.5),
+                RandCropOrPadd(keys=["image", "label"], prob=0.5, min_factor=0.8, max_factor=1.2),
                 RandRotate90d(keys=["image", "label"], prob=.75),
                 RandRotated(keys=["image", "label"], range_x=deg2rad(10)),
-                Rand2DElasticd(keys=["image", "label"], prob=.5, spacing=(30,30), magnitude_range=(1,3), padding_mode='zeros'),
-                # Resized(keys=["image", "label"], shape=(304,304)),
-                Resized(keys=["image", "label"], shape=(1024,1024)),
-                RandAdjustContrastd(keys=["image"], prob=0.5, gamma=(0.5,4.5)),
+                Rand2DElasticd(keys=["image", "label"], prob=.5, spacing=(20,20), magnitude_range=(2,4), padding_mode='zeros'),
+                Resized(keys=["image", "label"], shape=(304,304)),
+                # Resized(keys=["image", "label"], shape=(1024,1024)),
+                # RandAdjustContrastd(keys=["image"], prob=0.5, gamma=(0.5,2)),
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
                 AddLineArtifact(keys=["image"]),
                 AsDiscreted(keys=["label"], threshold=0.001),
@@ -56,6 +56,8 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 Flip(0),
                 ToDict(),
                 AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
+                Resized(keys=["image", "label"], shape=(304,304)),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
                 AsDiscreted(keys=["label"],threshold=0.001),
                 CastToTyped(keys=["image", "label"], dtype=dtype)
             ])
@@ -74,12 +76,12 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 LoadImaged(keys=["image"], image_only=True),
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
                 AddChanneld(keys=["image"]),
+                Rand2DElasticd(keys=["image"], prob=.5, spacing=(40,40), magnitude_range=(1,2), padding_mode='zeros'),
                 RandFlipd(keys=["image"], prob=.5, spatial_axis=[0, 1]),
                 RandRotate90d(keys=["image"], prob=.75),
                 RandRotated(keys=["image"], prob=1, range_x=deg2rad(10), padding_mode="zeros"),
                 RandCropOrPadd(keys=["image"], prob=1, min_factor=0.7, max_factor=1.3),
                 Resized(keys=["image"], shape=[1024,1024]),
-                Rand2DElasticd(keys=["image"], prob=.5, spacing=(40,40), magnitude_range=(1,2), padding_mode='zeros'),
                 RandAdjustContrastd(keys=["image"], prob=1, gamma=(0.5,1.5)),
                 # RandBiasFieldd(keys=["image"], prob=0.1, degree=3, coeff_range=(0.1,0.3)),
                 RandGaussianSmoothd(keys=["image"], prob=0.1, sigma_x=(0.25, 1.5), sigma_y=(0.25, 1.5)),
@@ -110,12 +112,12 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 LoadImaged(keys=["image"], image_only=True),
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
                 AddChanneld(keys=["image"]),
+                Rand2DElasticd(keys=["image"], prob=.5, spacing=(40,40), magnitude_range=(1,2), padding_mode='zeros'),
                 RandFlipd(keys=["image"], prob=.5, spatial_axis=[0, 1]),
                 RandRotate90d(keys=["image"], prob=.75),
                 # RandRotated(keys=["image"], prob=1, range_x=deg2rad(10), padding_mode="zeros"),
                 # RandCropOrPadd(keys=["image"], prob=1, min_factor=0.7, max_factor=1.3),
                 Resized(keys=["image"], shape=[1024,1024]),
-                Rand2DElasticd(keys=["image"], prob=.5, spacing=(40,40), magnitude_range=(1,2), padding_mode='zeros'),
                 RandAdjustContrastd(keys=["image"], prob=1, gamma=(0.5,1.5)),
                 # RandBiasFieldd(keys=["image"], prob=0.1, degree=3, coeff_range=(0.1,0.3)),
                 RandGaussianSmoothd(keys=["image"], prob=0.1, sigma_x=(0.25, 1.5), sigma_y=(0.25, 1.5)),
@@ -146,12 +148,12 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 LoadImaged(keys=["image", "label"], image_only=True),
                 ScaleIntensityd(keys=["image", "label"], minv=0, maxv=1),
                 AddChanneld(keys=["image"]),
+                Rand2DElasticd(keys=["image", "label"], prob=.5, spacing=(40,40), magnitude_range=(1,2), padding_mode='zeros'),
                 RandFlipd(keys=["image", "label"], prob=.5, spatial_axis=[0, 1]),
                 RandRotate90d(keys=["image", "label"], prob=.75),
                 RandRotated(keys=["image", "label"], prob=1, range_x=deg2rad(10), padding_mode="zeros"),
                 RandCropOrPadd(keys=["image", "label"], prob=1, min_factor=0.7, max_factor=1.3),
                 Resized(keys=["image", "label"], shape=[1024,1024]),
-                Rand2DElasticd(keys=["image", "label"], prob=.5, spacing=(40,40), magnitude_range=(1,2), padding_mode='zeros'),
                 RandAdjustContrastd(keys=["image"], prob=1, gamma=(0.7,1.3)),
                 # RandBiasFieldd(keys=["image"], prob=0.1, degree=3, coeff_range=(0.1,0.3)),
                 RandGaussianSmoothd(keys=["image"], prob=0.1, sigma_x=(0.25, 1.5), sigma_y=(0.25, 1.5)),
@@ -181,7 +183,7 @@ def get_post_transformation(task: Task, num_classes=2) -> tuple[Compose]:
     Create and return the data transformation that is applied to the model prediction before inference.
     """
     if task == Task.VESSEL_SEGMENTATION:
-        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), KeepLargestConnectedComponent()]), Compose([CastToType(dtype=torch.uint8)])
+        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([CastToType(dtype=torch.uint8)])
     elif task == task == Task.AREA_SEGMENTATION:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([CastToType(dtype=torch.uint8)])
     else:

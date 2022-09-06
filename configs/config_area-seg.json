@@ -24,7 +24,7 @@
         "lambda_cl_dice": 0,
         "lr":1e-3,
         "dropout_prob": 0,
-        "model_path": "/home/lkreitner/OCTA-seg/results/20220820_160256_cairo/best_metric_model.pth"
+        "model_path": "/home/lkreitner/OCTA-seg/results/ves-seg/20220820_160256_cairo/best_metric_model.pth"
     },
     "Validation": {
         "batch_size": 4,
