@@ -123,10 +123,33 @@ class MetricsManager():
     def get_comp_metric(self, prefix: str):
         return f'{prefix}_{self.comp}'
 
+class WeightedCosineLoss():
+    def __init__(self, weights=[1,1,1]) -> None:
+        self.weights = weights
+
+    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        y_pred_norm = torch.nn.functional.normalize(y_pred, dim=-1)
+        y_one_hot = torch.nn.functional.one_hot(y, num_classes=y_pred.size(-1)).float()
+        cosine_sim = torch.sum(y_pred_norm*y_one_hot, dim=1)
+        sample_weights = torch.tensor([self.weights[y_i] for y_i in y], device=y.device)
+        weighted_cosine_sim = sample_weights * cosine_sim
+        return 1- (torch.sum(weighted_cosine_sim)/sample_weights.sum())
+
+
 def get_loss_function(task: Task, config: dict) -> tuple[str, Union[clDiceLoss, SigmoidDiceBCELoss, torch.nn.CrossEntropyLoss]]:
     if task == Task.VESSEL_SEGMENTATION:
         return 'clDiceLoss', clDiceLoss(alpha=config["Train"]["lambda_cl_dice"], sigmoid=True)
     elif task == Task.AREA_SEGMENTATION:
         return 'DiceBCELoss', SigmoidDiceBCELoss()
     else:
-        return 'CrossEntropyLoss', torch.nn.CrossEntropyLoss()
+        # return 'CrossEntropyLoss', torch.nn.CrossEntropyLoss()
+        return "CosineEmbeddingLoss", WeightedCosineLoss(weights=[1/0.537,1/0.349,1/0.115])
+
+def get_loss_function_by_name(name: str, config: dict) -> Union[clDiceLoss, SigmoidDiceBCELoss, torch.nn.CrossEntropyLoss, WeightedCosineLoss]:
+    loss_map = {
+        # "clDiceLoss": clDiceLoss(alpha=config["Train"]["lambda_cl_dice"], sigmoid=True),
+        "DiceBCELoss": SigmoidDiceBCELoss(),
+        "CrossEntropyLoss": torch.nn.CrossEntropyLoss(),
+        "CosineEmbeddingLoss": WeightedCosineLoss(weights=[1/0.537,1/0.349,1/0.115])
+    }
+    return loss_map[name]

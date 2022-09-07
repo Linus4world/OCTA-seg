@@ -6,6 +6,41 @@ import math
 import random
 from PIL import Image
 
+class AddRandomErasingd(MapTransform):
+    def __init__(self, keys: tuple[str], prob = 1, min_area=0.04, max_area = 0.25):
+        super().__init__(keys, False)
+        self.prob = prob
+        self.max_area = max_area
+        self.min_area = min_area
+       
+    def __call__(self, data: dict):
+
+        if random.uniform(0,1)>self.prob:
+            return img
+
+        EPSISON = 1e-8
+        h = random.uniform(EPSISON,1)
+        w = random.uniform(EPSISON,1)
+        area = random.uniform(self.min_area, self.max_area)
+        mult = math.sqrt(area / (h*w))
+        h = min(mult*h, 1)
+        w = min(mult*w,1)
+        s_h = None
+
+        for key in self.keys:
+            img: torch.Tensor = data[key]
+            if s_h is None:
+                h_i = max(1,math.floor(h * img.shape[1]))
+                w_i = max(1,math.floor(w * img.shape[2]))
+                rect = torch.normal(0.5,0.1,([img.shape[0],h_i,w_i]))
+                s_h = random.randint(0,img.shape[1]-h_i)
+                s_w = random.randint(0,img.shape[2]-w_i)
+
+            img[:,s_h:s_h+h_i,s_w:s_w+w_i] = rect
+            
+            data[key] = img
+        return data
+
 class AddLineArtifact(MapTransform):
     """
     Generates a blurry horizontal line with is a common image artifact in OCTA images 

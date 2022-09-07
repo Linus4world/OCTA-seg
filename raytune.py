@@ -10,20 +10,20 @@ import os
 import random
 import torch
 
-# from torch.utils.data import Dataset
 from monai.data import decollate_batch
 from monai.utils import set_determinism
 from networks import ResNet, MODEL_DICT, init_weights, load_intermediate_net
 from monai.networks.nets import DynUNet
 
 from image_dataset import get_dataset, get_post_transformation
-from metrics import MetricsManager, Task, get_loss_function
+from metrics import MetricsManager, Task, get_loss_function, get_loss_function_by_name
+from raytune_config import OPTIMIZE_TYPE, get_raytune_config
 from visualizer import Visualizer
 
 
-# Parse input arguments
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--config_file', type=str, required=True)
+parser.add_argument('--type', choices=[OPTIMIZE_TYPE.PB2, OPTIMIZE_TYPE.ASHA, OPTIMIZE_TYPE.BOHB], required=True)
 parser.add_argument('--debug_mode', action="store_true")
 parser.add_argument('--resume', action="store_true")
 args = parser.parse_args()
@@ -40,7 +40,6 @@ def model_2_str(model):
 def training_function(config_i: dict):
     set_determinism(seed=config_i["General"]["seed"])
     VAL_AMP = config_i["General"]["amp"]
-    # use amp to accelerate training
     scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
     device = torch.device(config_i["General"]["device"])
     task: Task = config_i["General"]["task"]
@@ -72,13 +71,11 @@ def training_function(config_i: dict):
         ).to(device)
     else:
         model: ResNet = model(num_classes=config_i["Data"]["num_classes"], input_channels=2 if USE_SEG_INPUT else 1).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), config_i["Train"]["lr"])
+    optimizer = torch.optim.Adam(model.parameters(), config_i["Train"]["lr"], weight_decay=1e-6)
 
-    # To restore a checkpoint, use `session.get_checkpoint()`.
     loaded_checkpoint = session.get_checkpoint()
     if loaded_checkpoint is not None:
         with loaded_checkpoint.as_directory() as checkpoint_dir:
-            # print('CHECKPOINT DIR AS DIRECTORY: '+checkpoint_dir)
             checkpoint_path = os.path.join(checkpoint_dir, "checkpoint.pth")
             checkpoint = torch.load(checkpoint_path)
             model.load_state_dict(checkpoint['model'])
@@ -95,7 +92,8 @@ def training_function(config_i: dict):
     # Get Dataloader
     val_loader = get_dataset(config_i, 'validation')
     post_pred, post_label = get_post_transformation(task, num_classes=config_i["Data"]["num_classes"])
-    loss_name, loss_function = get_loss_function(task, config_i)
+    loss_name = config_i["loss"]
+    loss_function = get_loss_function_by_name(loss_name, config_i)
 
     # TRAINING BEGINS HERE
     while True:
@@ -128,22 +126,17 @@ def training_function(config_i: dict):
             val_loss = []
             for val_data in val_loader:
                 val_inputs, val_labels = (
-                    val_data["image"].to(device),
+                    val_data["image"].to(device).float(),
                     val_data["label"].to(device),
                 )
-                with torch.cuda.amp.autocast():
-                    intermediate = calculate_itermediate(val_inputs)
-                    val_outputs: torch.Tensor = model(intermediate)
-                    val_loss.append(loss_function(val_outputs, val_labels).item())
-                    
-                    val_labels_post = [post_label(i) for i in decollate_batch(val_labels)]
-                    val_outputs_post = [post_pred(i) for i in decollate_batch(val_outputs)]
+                intermediate = calculate_itermediate(val_inputs)
+                val_outputs: torch.Tensor = model(intermediate)
+                val_loss.append(loss_function(val_outputs, val_labels).item())
+                
+                val_labels_post = [post_label(i) for i in decollate_batch(val_labels)]
+                val_outputs_post = [post_pred(i) for i in decollate_batch(val_outputs)]
 
-                    valid_row_idx = [(v <= 1).any().item() for v in val_outputs_post]
-                    val_labels_post = [v for i,v in enumerate(val_labels_post) if valid_row_idx[i]]
-                    val_outputs_post = [v for i,v in enumerate(val_outputs_post) if valid_row_idx[i]]
-
-                    metrics(y_pred=val_outputs_post, y=val_labels_post)
+                metrics(y_pred=val_outputs_post, y=val_labels_post)
 
             metrics_dict[f'val_{loss_name}'] = sum(val_loss)/len(val_loss)
             metrics_dict.update(metrics.aggregate_and_reset(prefix="val"))
@@ -159,7 +152,6 @@ def training_function(config_i: dict):
             }
             Visualizer.save_tune_checkpoint('my_checkpoint/', d)
             checkpoint = Checkpoint.from_directory('my_checkpoint')
-            # checkpoint = Checkpoint.from_dict(d)
             session.report(metrics_dict, checkpoint=checkpoint)
 
 
@@ -168,99 +160,15 @@ METRIC = 'val_QwK'
 METRIC_LAST_5_MAX = METRIC + "_last_5_max"
 STEPS_TO_NEXT_CHECKPOINT = 5
 
-
-
-class CustomStopper(tune.Stopper):
-        '''
-        Implements a custom Pleatau Stopper that stops all trails once there was no improvement on the score by more than
-        self.tolerance for more than self.patience steps.
-        '''
-        def __init__(self):
-            self.should_stop = False
-            # self.max_iter = 350
-            self.patience = 50
-            self.tolerance = 0.01
-            self.scores = []
-
-        def __call__(self, trial_id, result):
-            step = result["training_iteration"]-1
-            if  len(self.scores)<=step:
-                self.scores.append(result[METRIC])
-            else:
-                self.scores[step] = max(self.scores[step], result[METRIC])
-            return self.should_stop or (
-                len(self.scores)>self.patience and 
-                max(self.scores[step-self.patience:step+1]) < max(self.scores[:step-self.patience])+self.tolerance)
-
-        def stop_all(self):
-            return self.should_stop
-
-def compute_gpu_load(num_trails):
-    return {"gpu": int(100.0/num_trails)/100.0 }
-
-
-###########################################
-#  PB2 example
-
-# from ray.tune.schedulers.pb2 import PB2
-# search_space = {
-#     "lr": [0.01, 0.00001],
-#     "batch_size": [1,16],
-# }
-# start_search_space = {
-#     "lr": tune.uniform(0.001, 0.0001),
-#     "batch_size": tune.choice([4,8,16]),
-# }
-# scheduler = PB2(
-#     time_attr="training_iteration",
-#     metric=METRIC_LAST_5_MAX,
-#     mode='max',
-#     perturbation_interval=5,
-#     hyperparam_bounds=search_space,
-#     start_search_space=start_search_space
-# )
-# search_alg = None
-# num_samples = 4
-# NAME = "PB2"
-# stopper = CustomStopper()
-###########################################
-
-
-###########################################
-#  ASHA example
-from ray.tune.schedulers import AsyncHyperBandScheduler
-from ray.tune.search.hyperopt import HyperOptSearch
-import hyperopt.hp
-
-scheduler = AsyncHyperBandScheduler(
-    time_attr='training_iteration',
+NAME, scheduler, search_alg, num_samples = get_raytune_config(
+    args.type,
     metric=METRIC_LAST_5_MAX,
-    mode='max',
-    grace_period=50,
-    max_t=250,
-    reduction_factor=25
+    mode="max",
+    seed=CONFIG["General"]["seed"]
 )
-param_space = {
-    "lr": hyperopt.hp.uniform("lr",0.00001, 0.01),
-    "batch_size": hyperopt.hp.choice("batch_size", [2,4,8,16]),
-    "model": hyperopt.hp.choice("model",["efficientnet_b0", "efficientnet_b1", "efficientnet_b2"])
-}
-start_config = [{
-    "lr": 0.001,
-    "batch_size": 8,
-    "model": "efficientnet_b1"
-}]
-search_alg = HyperOptSearch(
-    space=param_space,
-    metric=METRIC_LAST_5_MAX,
-    mode='max',
-    random_state_seed=CONFIG["General"]["seed"],
-    points_to_evaluate=start_config
-)
-num_samples = 32
-NAME = "ASHA"
-stopper = CustomStopper()
-############################################
+
+# stopper = TrialPlateauStopper(METRIC_LAST_5_MAX, mode="max", num_results=40, grace_period=50)
+stopper = {"training_iteration": 300}
 
 reporter = CLIReporter(
     metric=METRIC_LAST_5_MAX,
@@ -279,7 +187,7 @@ else:
     tuner = tune.Tuner(
         tune.with_resources(
             training_function,
-            {"cpu": 1,"gpu": 0.5}
+            {"cpu": 2,"gpu": 0.5}
         ),
         param_space=CONFIG,
         tune_config=tune.TuneConfig(

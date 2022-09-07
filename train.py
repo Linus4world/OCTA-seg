@@ -154,7 +154,7 @@ for epoch in epoch_tqdm:
     if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
         visualizer.plot_sample(inputs[0], outputs[0], labels[0], suffix='train')
     else:
-        visualizer.plot_clf_sample(inputs, outputs, labels, suffix='train')
+        visualizer.plot_clf_sample(inputs, outputs, labels, batch_data["path"], suffix='train')
 
     if (epoch + 1) % val_interval == 0:
         model.eval()
@@ -190,7 +190,7 @@ for epoch in epoch_tqdm:
                 if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
                     visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], suffix= None if best_metric>metric_comp else 'best')
                 else:
-                    visualizer.plot_clf_sample(val_inputs, val_outputs, val_labels, suffix= None if best_metric>metric_comp else 'best')
+                    visualizer.plot_clf_sample(val_inputs, val_outputs, val_labels, val_data["path"], suffix= None if best_metric>metric_comp else 'best')
     visualizer.log_model_params(model, epoch)
 
 total_time = time.time() - total_start

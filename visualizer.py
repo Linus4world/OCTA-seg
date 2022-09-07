@@ -132,7 +132,7 @@ class Visualizer():
                 for k,v in record.items():
                     self.tb.add_scalar(k,v,epoch+1)
 
-    def plot_clf_sample(self, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor, suffix: int = None):
+    def plot_clf_sample(self, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor, path: str, suffix: int = None):
         input = input.squeeze(1).detach().cpu().numpy()
         input = input - input.min()
         input = input / input.max()
@@ -142,7 +142,8 @@ class Visualizer():
             n = min(3,input.shape[0])
             fig = plt.subplots(1, n, figsize=(n*inches, inches))[0]
             for i in range(n):
-                fig.axes[i].set_title(f"Pred: {np.round(pred[i].detach().cpu().numpy(),2)}, Real: {truth[i].detach().cpu().numpy()}")
+                name = path[i].split("/")[-1]
+                fig.axes[i].set_title(f"{name} - Pred: {np.round(pred[i].detach().cpu().numpy(),2)}, Real: {truth[i].detach().cpu().numpy()}")
                 fig.axes[i].imshow(input[i])#, cmap='Greys')
             if suffix is not None:
                 suffix = '_'+suffix
@@ -256,7 +257,7 @@ class Visualizer():
     def log_model_params(self, model: torch.nn.Module, epoch: int):
         for name, weight in model.named_parameters():
             self.tb.add_histogram(name,weight, epoch)
-            if not torch.isnan(weight.grad).any():
+            if not torch.isnan(weight.grad).any() or torch.isinf(weight.grad).any():
                 self.tb.add_histogram(f'{name}.grad',weight.grad, epoch)
 
     def save_hyperparams(self, params: dict, metrics):
