@@ -38,16 +38,26 @@ def model_2_str(model):
     return str(model).split(' ')[1]
 
 def training_function(config_i: dict):
+    """
+    The training function is used by each single trial with a different configuration.
+
+    Paramters:
+        - config_i: Dictionary that holds all necessary configuration information (deep). The current search parameters are inserted shallow. Note that the config dict must be serializable.
+    """
     set_determinism(seed=config_i["General"]["seed"])
     VAL_AMP = config_i["General"]["amp"]
     scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
     device = torch.device(config_i["General"]["device"])
     task: Task = config_i["General"]["task"]
 
+    # Copy current search parameters at the correct place and overwrite defaults.
     config_i["Train"]["lr"]=config_i["lr"]
     config_i["Train"]["batch_size"]=config_i["batch_size"]
-    config_i["General"]["model"]=config_i["model"]
+    config_i["Train"]["loss"]=config_i["loss"]
+    if "model" in config_i:
+        config_i["General"]["model"]=config_i["model"]
 
+    # Load model and intermediate model
     model = MODEL_DICT[config_i["General"]["model"]]
     USE_SEG_INPUT = config_i["Train"]["model_path"] != ''
     calculate_itermediate = load_intermediate_net(
@@ -73,6 +83,7 @@ def training_function(config_i: dict):
         model: ResNet = model(num_classes=config_i["Data"]["num_classes"], input_channels=2 if USE_SEG_INPUT else 1).to(device)
     optimizer = torch.optim.Adam(model.parameters(), config_i["Train"]["lr"], weight_decay=1e-6)
 
+    # If the trail was previously terminated or paused, it can be reloaded from a checkpoint. `Session.get_checkpoint` will automatically find the correct checkpoint.
     loaded_checkpoint = session.get_checkpoint()
     if loaded_checkpoint is not None:
         with loaded_checkpoint.as_directory() as checkpoint_dir:
@@ -83,6 +94,7 @@ def training_function(config_i: dict):
             step = checkpoint['step']
             scores = checkpoint['scores']
     else:
+        # If the trial starts from scratch, the weights are initialized via He initialization
         init_weights(model, init_type='kaiming')
         step=0
         scores=[]
@@ -92,7 +104,7 @@ def training_function(config_i: dict):
     # Get Dataloader
     val_loader = get_dataset(config_i, 'validation')
     post_pred, post_label = get_post_transformation(task, num_classes=config_i["Data"]["num_classes"])
-    loss_name = config_i["loss"]
+    loss_name = config_i["Train"]["loss"]
     loss_function = get_loss_function_by_name(loss_name, config_i)
 
     # TRAINING BEGINS HERE
@@ -143,6 +155,8 @@ def training_function(config_i: dict):
             scores.append(metrics_dict[METRIC])
             metrics_dict[METRIC_LAST_5_MAX] = max(scores[-5:])
 
+            # Every epoch a checkpoint is created. Tune automatically registers the checkpoint once the result is reported.
+            # The Checkpoint configuration only keeps the latest and the best checkpoint on the disk and deletes all others.
             os.makedirs('my_checkpoint', exist_ok=True)
             d = {
                 "model": model.state_dict(),
@@ -154,12 +168,14 @@ def training_function(config_i: dict):
             checkpoint = Checkpoint.from_directory('my_checkpoint')
             session.report(metrics_dict, checkpoint=checkpoint)
 
-
+# SEED for reproducability
 CONFIG["General"]["seed"]=random.randint(0,1e6)
 METRIC = 'val_QwK'
+# Last 5 max is used since the validation score exhibits strong fluctuations.
 METRIC_LAST_5_MAX = METRIC + "_last_5_max"
 STEPS_TO_NEXT_CHECKPOINT = 5
 
+# Load the respective scheduler and search algorithm to be used
 NAME, scheduler, search_alg, num_samples = get_raytune_config(
     args.type,
     metric=METRIC_LAST_5_MAX,
@@ -189,6 +205,7 @@ else:
             training_function,
             {"cpu": 2,"gpu": 0.5}
         ),
+        # Config that is given to training function. Search parameters are added to the config by each trail individually
         param_space=CONFIG,
         tune_config=tune.TuneConfig(
             scheduler=scheduler,

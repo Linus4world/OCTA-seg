@@ -2,6 +2,7 @@
     "General": {
         "amp": true,
         "device": "cuda:0",
+        "model": "efficientnet_b1",
         "num_layers": 3,
         "kernel_size": 3,
         "task": "ret-clf",
