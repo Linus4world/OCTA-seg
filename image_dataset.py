@@ -1,6 +1,6 @@
 from monai.data import DataLoader, Dataset
 from monai.transforms import *
-from data_transforms import AddRealNoised, RandCropOrPadd, ToDict, Resized, AddLineArtifact
+from data_transforms import AddRealNoised, RandCropOrPadd, SplitImageLabeld, Resized, AddLineArtifact
 import os
 from numpy import array, deg2rad
 import csv
@@ -8,7 +8,7 @@ import torch
 
 from monai.data.meta_obj import set_track_meta
 
-from metrics import Task
+from utils.metrics import Task
 set_track_meta(False)
 
 def get_custom_file_paths(folder, name):
@@ -28,11 +28,12 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
     if task == Task.VESSEL_SEGMENTATION:
         if phase == "train":
             return Compose([
-                LoadImage(image_only=True),
-                ScaleIntensity(0, 1),
-                AddChannel(),
-                ToDict(),
-                # AddRandomNoised(noise_layer_path=config["Data"]["noise_map_path"]),
+                LoadImaged(keys=["image"], image_only=True),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                AddChanneld(keys=["image"]),
+                Rotate90d(keys=["image"], k=1),
+                Flipd(keys=["image"], spatial_axis=0),
+                SplitImageLabeld(keys=["image", "label"]),
                 AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
                 RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=[0,1]),
                 RandCropOrPadd(keys=["image", "label"], prob=0.5, min_factor=0.8, max_factor=1.2),
@@ -49,12 +50,12 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
             ])
         elif phase == "validation":
             return Compose([
-                LoadImage(image_only=True),
-                ScaleIntensity(0, 1),
-                AddChannel(),
-                Rotate90(k=1),
-                Flip(0),
-                ToDict(),
+                LoadImaged(keys=["image"], image_only=True),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                AddChanneld(keys=["image"]),
+                Rotate90d(keys=["image"], k=1),
+                Flipd(keys=["image"], spatial_axis=0),
+                SplitImageLabeld(keys=["image", "label"]),
                 AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
                 Resized(keys=["image", "label"], shape=(304,304)),
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
@@ -63,12 +64,12 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
             ])
         else:
             return Compose([
-                LoadImage(image_only=True),
-                ScaleIntensity(0, 1),
-                AddChannel(),
-                Rotate90(k=1),
-                Flip(0),
-                CastToType(dtype=dtype)
+                LoadImaged(keys=["image"], image_only=True),
+                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                AddChanneld(keys=["image"]),
+                Rotate90d(keys=["image"], k=1),
+                Flipd(keys=["image"], spatial_axis=0),
+                CastToTyped(keys=["image"], dtype=dtype)
             ])
     elif task == Task.RETINOPATHY_CLASSIFICATION:
         if phase == "train":
@@ -183,7 +184,7 @@ def get_post_transformation(task: Task, num_classes=2) -> tuple[Compose]:
     Create and return the data transformation that is applied to the model prediction before inference.
     """
     if task == Task.VESSEL_SEGMENTATION:
-        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([CastToType(dtype=torch.uint8)])
+        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), KeepLargestConnectedComponent()]), Compose([CastToType(dtype=torch.uint8)])
     elif task == task == Task.AREA_SEGMENTATION:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([CastToType(dtype=torch.uint8)])
     else:
@@ -209,7 +210,7 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
     image_paths = array(image_paths)[indices].tolist()
 
     if task == Task.VESSEL_SEGMENTATION:
-        train_files = image_paths
+        train_files = [{"image": path, "path": path} for path in image_paths]
     elif task == Task.RETINOPATHY_CLASSIFICATION or task == Task.IMAGE_QUALITY_CLASSIFICATION:
         if config["Data"]["dataset_labels"] != '':
             reader = csv.reader(open(config["Data"]["dataset_labels"], 'r'))

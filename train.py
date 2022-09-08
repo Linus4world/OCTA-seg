@@ -12,8 +12,8 @@ import time
 from tqdm import tqdm
 
 from image_dataset import get_dataset, get_post_transformation
-from metrics import MetricsManager, Task, get_loss_function_by_name
-from visualizer import Visualizer
+from utils.metrics import MetricsManager, Task, get_loss_function_by_name
+from utils.visualizer import Visualizer
 
 # Parse input arguments
 parser = argparse.ArgumentParser(description='')

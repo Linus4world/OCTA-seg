@@ -1,5 +1,5 @@
 import torch
-from metrics import Task
+from utils.metrics import Task
 
 from models.networks import MODEL_DICT, init_weights, load_intermediate_net
 

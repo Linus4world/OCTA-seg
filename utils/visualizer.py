@@ -12,7 +12,7 @@ import json
 import math
 from PIL import Image
 
-from voreen_vesselgraphextraction import extract_vessel_graph
+from utils.voreen_vesselgraphextraction import extract_vessel_graph
 
 class Visualizer():
     """

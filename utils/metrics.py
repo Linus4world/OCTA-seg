@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 import torch
 from monai.metrics import DiceMetric, MeanIoU, ROCAUCMetric
-from cl_dice_loss import clDiceLoss
+from utils.cl_dice_loss import clDiceLoss
 from monai.losses import DiceLoss
 
 
