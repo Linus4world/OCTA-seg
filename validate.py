@@ -7,13 +7,10 @@ import numpy as np
 
 from monai.data import decollate_batch
 from monai.utils import set_determinism
-from monai.networks.nets import DynUNet
-from models.networks import MODEL_DICT
+from models.model import initialize_model
 
 from image_dataset import get_dataset, get_post_transformation
 from metrics import MetricsManager, Task
-
-from visualizer import plot_clf_sample
 
 # Parse input arguments
 parser = argparse.ArgumentParser(description='')
@@ -40,72 +37,14 @@ VAL_AMP = config["General"]["amp"]
 scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 
-USE_SEG_INPUT = config["Train"]["model_path"] != ''
+model, optimizer, calculate_itermediate = initialize_model(config, args)
 
-# Model
-num_layers = config["General"]["num_layers"]
-kernel_size = config["General"]["kernel_size"]
-if USE_SEG_INPUT:
-    pre_model = DynUNet(
-        spatial_dims=2,
-        in_channels=1,
-        out_channels=1,
-        kernel_size=(3, *[kernel_size]*num_layers,3),
-        strides=(1,*[2]*num_layers,1),
-        upsample_kernel_size=(1,*[2]*num_layers,1),
-    ).to(device)
-    checkpoint = torch.load(config["Train"]["model_path"])
-    if hasattr(checkpoint, 'model'):
-        pre_model.load_state_dict(checkpoint['model'])
-    else:
-        pre_model.load_state_dict(checkpoint)
-    pre_model.eval()
-    post_itermediate, _ = get_post_transformation(Task.VESSEL_SEGMENTATION, num_classes=config["Data"]["num_classes"])
-
-    def calculate_itermediate(inputs: torch.Tensor):
-        with torch.no_grad():
-            intermediate = pre_model(inputs)
-            intermediate = torch.stack([post_itermediate(inter) for inter in intermediate])
-            intermediate = torch.cat([inputs,intermediate], dim=1)
-            return intermediate
-else:
-    def calculate_itermediate(inputs: torch.Tensor):
-        return inputs
-
-if task == Task.VESSEL_SEGMENTATION:
-    model = DynUNet(
-        spatial_dims=2,
-        in_channels=1,
-        out_channels=config["Data"]["num_classes"],
-        kernel_size=(3, *[kernel_size]*num_layers,3),
-        strides=(1,*[2]*num_layers,1),
-        upsample_kernel_size=(1,*[2]*num_layers,1),
-    ).to(device)
-elif task == Task.AREA_SEGMENTATION:
-    model = DynUNet(
-        spatial_dims=2,
-        in_channels= 2 if USE_SEG_INPUT else 1,
-        out_channels=config["Data"]["num_classes"],
-        kernel_size=(3, *[kernel_size]*num_layers,3),
-        strides=(1,*[2]*num_layers,1),
-        upsample_kernel_size=(1,*[2]*num_layers,1),
-    ).to(device)
-else:
-    model = MODEL_DICT[config["General"]["model"]](num_classes=config["Data"]["num_classes"], input_channels=2 if USE_SEG_INPUT else 1).to(device)
-
+metrics = MetricsManager(task)
 predictions = []
 tp_per_class = np.array([0 for _ in range(config["Data"]["num_classes"])])
 num_pos_per_class = np.array([0 for _ in range(config["Data"]["num_classes"])])
-metrics = MetricsManager(task)
 
-checkpoint = torch.load(config["Test"]["model_path"])
-if 'model' in checkpoint:
-    model.load_state_dict(checkpoint['model'])
-    print(f'Loaded model from epoch {checkpoint["epoch"]}')
-else:
-    model.load_state_dict(checkpoint)
 model.eval()
-
 with torch.no_grad():
     num_sample=0
     with torch.no_grad():

@@ -7,8 +7,7 @@ import datetime
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
 from monai.utils import set_determinism
-from monai.networks.nets import DynUNet
-from models.networks import MODEL_DICT, init_weights, load_intermediate_net
+from models.model import initialize_model
 import time
 from tqdm import tqdm
 
@@ -35,67 +34,13 @@ VAL_AMP = config["General"]["amp"]
 scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 task: Task = config["General"]["task"]
-model_path: str = config["Test"]["model_path"]
-USE_SEG_INPUT = config["Train"]["model_path"] != ''
-visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT)
+visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT = config["Train"]["model_path"] != '')
 
 train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')
 post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
-
-# Model
-num_layers = config["General"]["num_layers"]
-kernel_size = config["General"]["kernel_size"]
-
-USE_SEG_INPUT = config["Train"]["model_path"] != ''
-calculate_itermediate = load_intermediate_net(
-    USE_SEG_INPUT=USE_SEG_INPUT,
-    model_path=config["Train"]["model_path"],
-    num_layers=config["General"]["num_layers"],
-    kernel_size=config["General"]["kernel_size"],
-    num_classes=config["Data"]["num_classes"],
-    device=device
-)
-
-if task == Task.VESSEL_SEGMENTATION:
-    model = DynUNet(
-        spatial_dims=2,
-        in_channels=1,
-        out_channels=config["Data"]["num_classes"],
-        kernel_size=(3, *[kernel_size]*num_layers,3),
-        strides=(1,*[2]*num_layers,1),
-        upsample_kernel_size=(1,*[2]*num_layers,1),
-    ).to(device)
-elif task == Task.AREA_SEGMENTATION:
-    model = DynUNet(
-        spatial_dims=2,
-        in_channels= 2 if USE_SEG_INPUT else 1,
-        out_channels=config["Data"]["num_classes"],
-        kernel_size=(3, *[kernel_size]*num_layers,3),
-        strides=(1,*[2]*num_layers,1),
-        upsample_kernel_size=(1,*[2]*num_layers,1),
-    ).to(device)
-    init_weights(model, init_type='kaiming')
-    # if USE_SEG_INPUT:
-    #     if 'model' in checkpoint:
-    #         model.load_state_dict(checkpoint['model'], strict=False)
-    #     else:
-    #         # filter unnecessary keys
-    #         pretrained_dict = {k: v for k, v in checkpoint.items() if
-    #                             (k in model.state_dict().keys()) and (model.state_dict()[k].shape == checkpoint[k].shape)}
-    #         model.load_state_dict(pretrained_dict, strict=False)
-else:
-    model = MODEL_DICT[config["General"]["model"]](num_classes=config["Data"]["num_classes"], input_channels=2 if USE_SEG_INPUT else 1).to(device)
-
-if args.start_epoch>0:
-    checkpoint = torch.load(model_path.replace('best_model', 'latest_model'))
-    model.load_state_dict(checkpoint['model'])
-    optimizer = torch.optim.Adam(model.parameters(), config["Train"]["lr"])
-    optimizer.load_state_dict(checkpoint['optimizer'])
-else:
-    init_weights(model, init_type='kaiming')
-    optimizer = torch.optim.Adam(model.parameters(), config["Train"]["lr"])#, weight_decay=1e-5)
+model, optimizer, calculate_itermediate = initialize_model(config, args)
 
 with torch.no_grad():
     inputs = next(iter(train_loader))["image"].to(device=device, dtype=torch.float32)

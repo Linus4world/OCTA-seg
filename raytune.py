@@ -12,11 +12,10 @@ import torch
 
 from monai.data import decollate_batch
 from monai.utils import set_determinism
-from models.networks import ResNet, MODEL_DICT, init_weights, load_intermediate_net
-from monai.networks.nets import DynUNet
+from models.model import initialize_model
 
 from image_dataset import get_dataset, get_post_transformation
-from metrics import MetricsManager, Task, get_loss_function, get_loss_function_by_name
+from metrics import MetricsManager, Task, get_loss_function_by_name
 from raytune_config import OPTIMIZE_TYPE, get_raytune_config
 from visualizer import Visualizer
 
@@ -57,31 +56,7 @@ def training_function(config_i: dict):
     if "model" in config_i:
         config_i["General"]["model"]=config_i["model"]
 
-    # Load model and intermediate model
-    model = MODEL_DICT[config_i["General"]["model"]]
-    USE_SEG_INPUT = config_i["Train"]["model_path"] != ''
-    calculate_itermediate = load_intermediate_net(
-        USE_SEG_INPUT=USE_SEG_INPUT,
-        model_path=config_i["Train"]["model_path"],
-        num_layers=config_i["General"]["num_layers"],
-        kernel_size=config_i["General"]["kernel_size"],
-        num_classes=config_i["Data"]["num_classes"],
-        device=device
-    )
-    if task == Task.AREA_SEGMENTATION:
-        num_layers = config_i["General"]["num_layers"]
-        kernel_size = config_i["General"]["kernel_size"]
-        model: DynUNet = DynUNet(
-            spatial_dims=2,
-            in_channels=1,
-            out_channels=config_i["Data"]["num_classes"],
-            kernel_size=(3, *[kernel_size]*num_layers,3),
-            strides=(1,*[2]*num_layers,1),
-            upsample_kernel_size=(1,*[2]*num_layers,1),
-        ).to(device)
-    else:
-        model: ResNet = model(num_classes=config_i["Data"]["num_classes"], input_channels=2 if USE_SEG_INPUT else 1).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), config_i["Train"]["lr"], weight_decay=1e-6)
+    model, optimizer, calculate_itermediate = initialize_model(config_i, args)
 
     # If the trail was previously terminated or paused, it can be reloaded from a checkpoint. `Session.get_checkpoint` will automatically find the correct checkpoint.
     loaded_checkpoint = session.get_checkpoint()
@@ -93,11 +68,6 @@ def training_function(config_i: dict):
             optimizer.load_state_dict(checkpoint['optimizer'])
             step = checkpoint['step']
             scores = checkpoint['scores']
-    else:
-        # If the trial starts from scratch, the weights are initialized via He initialization
-        init_weights(model, init_type='kaiming')
-        step=0
-        scores=[]
 
     metrics = MetricsManager(task)
     train_loader = get_dataset(config_i, 'train', batch_size=config_i["Train"]["batch_size"])

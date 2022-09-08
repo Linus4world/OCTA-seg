@@ -473,13 +473,14 @@ def init_weights(net: nn.Module, init_type='normal', init_gain=0.02, debug=False
 
     net.apply(init_func)  # apply the initialization function <init_func>
 
-MODEL_DICT: dict[str, Union[ResNet, EfficientNet]] = {
+MODEL_DICT: dict[str, Union[ResNet, EfficientNet, DynUNet]] = {
     "resnet18": resnet18,
     "resnet34": resnet34,
     "resnet50": resnet50,
     "efficientnet_b0": efficientnet_b0,
     "efficientnet_b1": efficientnet_b1,
-    "efficientnet_b2": efficientnet_b2
+    "efficientnet_b2": efficientnet_b2,
+    "DynUNet": DynUNet
 }
 
 def load_intermediate_net(USE_SEG_INPUT: bool, model_path: str, num_layers: int, kernel_size: int, num_classes: int, device: str):
