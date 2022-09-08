@@ -13,7 +13,7 @@ import time
 from tqdm import tqdm
 
 from image_dataset import get_dataset, get_post_transformation
-from metrics import MetricsManager, Task, get_loss_function
+from metrics import MetricsManager, Task, get_loss_function_by_name
 from visualizer import Visualizer
 
 # Parse input arguments
@@ -102,7 +102,8 @@ with torch.no_grad():
     intermediate = calculate_itermediate(inputs)
     visualizer.save_model_architecture(model, intermediate)
 
-loss_name, loss_function = get_loss_function(task, config)
+loss_name = config["Train"]["loss"]
+loss_function = get_loss_function_by_name(loss_name, config)
 def schedule(step: int):
     if step < max_epochs - config["Train"]["epochs_decay"]:
         return 1

@@ -8,7 +8,7 @@ import numpy as np
 from monai.data import decollate_batch
 from monai.utils import set_determinism
 from monai.networks.nets import DynUNet
-from networks import resnet18
+from networks import MODEL_DICT
 
 from image_dataset import get_dataset, get_post_transformation
 from metrics import Task
@@ -32,7 +32,7 @@ set_determinism(seed=0)
 task: Task = config["General"]["task"]
 
 test_loader = get_dataset(config, 'test')
-post_trans, _ = get_post_transformation(task)
+post_trans, _ = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
 VAL_AMP = config["General"]["amp"]
 # use amp to accelerate training
@@ -90,7 +90,7 @@ elif task == Task.AREA_SEGMENTATION:
         upsample_kernel_size=(1,*[2]*num_layers,1),
     ).to(device)
 else:
-    model = resnet18(num_classes=config["Data"]["num_classes"], input_channels=2 if USE_SEG_INPUT else 1).to(device)
+    model = MODEL_DICT[config["General"]["model"]](num_classes=config["Data"]["num_classes"], input_channels=2 if USE_SEG_INPUT else 1).to(device)
 
 predictions = []
 checkpoint = torch.load(config["Test"]["model_path"])
@@ -107,20 +107,21 @@ with torch.no_grad():
         if num_sample>=config["Test"]["num_samples"]:
             break
         num_sample+=1
-        if task == Task.VESSEL_SEGMENTATION:
-            val_inputs = test_data.to(device)
-        else:
-            val_inputs = test_data["image"].to(device)
-        with torch.cuda.amp.autocast():
-            intermediate = calculate_itermediate(val_inputs)
-            val_outputs = model(intermediate)
+        val_inputs = test_data["image"].to(device)
+        intermediate = calculate_itermediate(val_inputs)
+        val_outputs = model(intermediate)
         val_outputs = [post_trans(i).cpu() for i in decollate_batch(val_outputs)]
 
         if task == Task.VESSEL_SEGMENTATION:
             # clean_seg = extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)
             # graph_file = os.path.join(config["Test"]["save_dir"], f'sample_{num_sample}_graph.json')
             # graph_img = graph_file_to_img(graph_file, val_outputs[0].shape[-2:])
-            plot_sample(config["Test"]["save_dir"], val_inputs[0], val_outputs[0], None, number=num_sample)
+            plot_sample(config["Test"]["save_dir"], val_inputs[0], val_outputs[0], None, test_data["path"][0], number=num_sample)
+            # plot_single_image(config["Test"]["save_dir"], val_inputs[0], num_sample*10+1)
+            # plot_single_image(config["Test"]["save_dir"], val_outputs[0], num_sample*10+2)
+            # diff = val_inputs[0].clone()
+            # diff[val_outputs[0]==1]=0
+            # plot_single_image(config["Test"]["save_dir"], diff, num_sample*10+3)
         else:
             for i, path in enumerate(test_data["path"]):
                 predictions.append([str(path.split('/')[-1]), np.argmax(val_outputs[i].numpy()), *val_outputs[i].numpy().tolist()])
@@ -130,4 +131,3 @@ with torch.no_grad():
                     predictions[-1][idx] = predictions[-1][idx]-difference
     if task == Task.RETINOPATHY_CLASSIFICATION or Task.IMAGE_QUALITY_CLASSIFICATION:
         save_prediction_csv(config["Test"]["save_dir"], predictions)
-        # plot_sample(config["Test"]["save_dir"], val_inputs[0], torch.tensor(clean_seg), graph_img, number=num_sample)

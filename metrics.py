@@ -69,20 +69,25 @@ class QuadraticWeightedKappa:
     Implementation following https://github.com/zhuanjiao2222/DRAC2022/blob/main/evaluation/metric_classification.py
     """
     def __init__(self) -> None:
-        self.items = []
+        self.preds=[]
+        self.labels=[]
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> None:
-        for i in range(len(y_pred)):
-            self.items.append(quadratic_weighted_kappa(torch.round(y[i]).detach().cpu().numpy(),torch.round(y_pred[i]).detach().cpu().numpy()))
+    def __call__(self, y_pred: list[torch.Tensor], y: list[torch.Tensor]) -> None:
+        for y_pred_i, y_i in zip(y_pred, y):
+            pred_label = np.argmax(y_pred_i.detach().cpu().numpy())
+            true_label = np.argmax(y_i.numpy())
+            self.preds.append(pred_label)
+            self.labels.append(true_label)
 
     def aggregate(self) -> torch.Tensor:
-        if len(self.items) > 0:
-            return torch.tensor(sum(self.items)/len((self.items)))
+        if len(self.preds) > 0:
+            return torch.tensor(quadratic_weighted_kappa(self.labels,self.preds))
         else:
-            return torch.zeros(1)
+            return torch.tensor(0)
 
     def reset(self):
-        self.items = []
+        self.preds = []
+        self.labels = []
 
 class SigmoidDiceBCELoss():
     def __init__(self):
@@ -142,14 +147,14 @@ def get_loss_function(task: Task, config: dict) -> tuple[str, Union[clDiceLoss, 
     elif task == Task.AREA_SEGMENTATION:
         return 'DiceBCELoss', SigmoidDiceBCELoss()
     else:
-        # return 'CrossEntropyLoss', torch.nn.CrossEntropyLoss()
+        # return 'CrossEntropyLoss', torch.nn.CrossEntropyLoss(weights=torch.tensor([1/0.537,1/0.349,1/0.115]))
         return "CosineEmbeddingLoss", WeightedCosineLoss(weights=[1/0.537,1/0.349,1/0.115])
 
 def get_loss_function_by_name(name: str, config: dict) -> Union[clDiceLoss, SigmoidDiceBCELoss, torch.nn.CrossEntropyLoss, WeightedCosineLoss]:
     loss_map = {
         # "clDiceLoss": clDiceLoss(alpha=config["Train"]["lambda_cl_dice"], sigmoid=True),
         "DiceBCELoss": SigmoidDiceBCELoss(),
-        "CrossEntropyLoss": torch.nn.CrossEntropyLoss(),
-        "CosineEmbeddingLoss": WeightedCosineLoss(weights=[1/0.537,1/0.349,1/0.115])
+        "CrossEntropyLoss": torch.nn.CrossEntropyLoss(weight=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),
+        "CosineEmbeddingLoss": WeightedCosineLoss(weights=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"]))
     }
     return loss_map[name]

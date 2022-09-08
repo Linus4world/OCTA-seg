@@ -10,6 +10,7 @@ import csv
 import nibabel as nib
 import json
 import math
+from PIL import Image
 
 from voreen_vesselgraphextraction import extract_vessel_graph
 
@@ -65,6 +66,7 @@ class Visualizer():
         
         config["Output"]["save_dir"] = self.save_dir
         config["Test"]["save_dir"] = os.path.join(self.save_dir, 'test/')
+        config["Validation"]["save_dir"] = os.path.join(self.save_dir, 'val/')
         config["Test"]["model_path"] = os.path.join(self.save_dir, 'best_model.pth')
         with open(os.path.join(self.save_dir, 'config.json'), 'w') as f:
             json.dump(config, f, ensure_ascii=False, indent=4)
@@ -132,89 +134,36 @@ class Visualizer():
                 for k,v in record.items():
                     self.tb.add_scalar(k,v,epoch+1)
 
-    def plot_clf_sample(self, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor, path: str, suffix: int = None):
-        input = input.squeeze(1).detach().cpu().numpy()
-        input = input - input.min()
-        input = input / input.max()
-        input = (input * 255).astype(np.uint8)
-        if self.save_to_disk or self.save_to_tensorboard:
-            inches = get_fig_size(input)/2
-            n = min(3,input.shape[0])
-            fig = plt.subplots(1, n, figsize=(n*inches, inches))[0]
-            for i in range(n):
-                name = path[i].split("/")[-1]
-                fig.axes[i].set_title(f"{name} - Pred: {np.round(pred[i].detach().cpu().numpy(),2)}, Real: {truth[i].detach().cpu().numpy()}")
-                fig.axes[i].imshow(input[i])#, cmap='Greys')
-            if suffix is not None:
-                suffix = '_'+suffix
-            else:
-                suffix=''
-            plt.savefig(os.path.join(self.save_dir, f'sample{suffix}.png'), bbox_inches='tight')
-        if self.save_to_tensorboard:
-            self.tb.add_figure('sample', fig)
-        elif self.save_to_disk:
-            plt.close()
 
-    def plot_sample(self,input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor = None, suffix: str = None):
+    def plot_clf_sample(self, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor, path: str, suffix: int = None):
+        plot_clf_sample(
+            save_dir=self.save_dir,
+            input=input,
+            pred=pred,
+            truth=truth,
+            path=path,
+            suffix=suffix,
+            save_to_tensorboard=self.save_to_tensorboard,
+            tb=self.tb,
+            save_to_disk=self.save_to_disk
+        )
+
+    def plot_sample(self,input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor = None, path: str='', suffix: str = None):
         """
         Create a 3x1 (or 2x1 if no truth tensor is supplied) grid from the given 2D image tensors and save the image with the given number as label.
         If save_to_disk is true, create a matpyplot figure.
         If save_to_tensorboard add the images to the current tensorboard
         """
-        input = input.squeeze().detach().cpu().numpy()
-        input = input - input.min()
-        input = input / input.max()
-        input = (input * 255).astype(np.uint8)
-        
-        if truth is not None:
-            truth = truth.squeeze().detach().cpu().numpy()
-            truth = (truth * 255).astype(np.uint8)
-
-        pred = pred.squeeze().detach().cpu().numpy()
-        pred = (pred * 255).astype(np.uint8)
-
-        if self.save_to_tensorboard:
-            if truth is not None:
-                if (len(pred.shape)==3):
-                    input = np.tile(input[np.newaxis,:,:],[3,1,1])
-                    images = np.stack([input, pred, truth])
-                else:
-                    images = np.expand_dims(np.stack([input, pred, truth]),1)
-                label = "Input, Pred, Truth"
-            else:
-                if (len(pred.shape)==3):
-                    input = np.tile(input[np.newaxis,:,:],[3,1,1])
-                    images = np.stack([input, pred])
-                else:
-                    images = np.expand_dims(np.stack([input, pred]),1)
-                label = "Input, Pred"
-            self.tb.add_images(label, images)
-        
-        if self.save_to_disk:
-            inches = get_fig_size(input) / 2
-            fig, _ = plt.subplots(1, 3, figsize=(3*inches, inches))
-            fig.axes[0].set_title("Input")
-            if (input.shape[0]==3):
-                input = np.moveaxis(input,0,-1)
-            fig.axes[0].imshow(input)#, cmap='Greys')
-
-            fig.axes[1].set_title("Prediction")
-            if (pred.shape[0]==3):
-                pred = np.moveaxis(pred,0,-1)
-            fig.axes[1].imshow(pred)#, cmap='Greys')
-
-            if truth is not None:
-                fig.axes[2].set_title("Truth")
-                if (truth.shape[0]==3):
-                    truth = np.moveaxis(truth,0,-1)
-                fig.axes[2].imshow(truth)#, cmap='Greys')
-
-            if suffix is not None:
-                suffix = '_'+suffix
-            else:
-                suffix=''
-            plt.savefig(os.path.join(self.save_dir, f'sample{suffix}.png'), bbox_inches='tight')
-            plt.close()
+        plot_sample(
+            save_dir=self.save_dir,
+            input=input,
+            pred=pred,
+            truth=truth,
+            path=path,
+            number=suffix,
+            save_to_tensorboard=self.save_to_tensorboard,
+            tb=self.tb,
+            save_to_disk=self.save_to_disk)
 
     def _count_parameters(self, model: torch.nn.Module):
         table = PrettyTable(["Modules", "Parameters"])
@@ -257,13 +206,25 @@ class Visualizer():
     def log_model_params(self, model: torch.nn.Module, epoch: int):
         for name, weight in model.named_parameters():
             self.tb.add_histogram(name,weight, epoch)
-            if not torch.isnan(weight.grad).any() or torch.isinf(weight.grad).any():
+            if not torch.isnan(weight.grad).any() and not torch.isinf(weight.grad).any():
                 self.tb.add_histogram(f'{name}.grad',weight.grad, epoch)
 
     def save_hyperparams(self, params: dict, metrics):
         self.tb.add_hparams(params, metrics)
 
-def plot_sample(save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor=None, number:int=None):
+def plot_single_image(save_dir:str, input: torch.Tensor, number:int=None):
+    Image.fromarray((input.squeeze().detach().cpu().numpy()*255).astype(np.uint8)).save(os.path.join(save_dir, f'sample{number}.png'))
+
+def plot_sample(
+    save_dir: str,
+    input: torch.Tensor,
+    pred: torch.Tensor,
+    truth: torch.Tensor=None,
+    path: str = '',
+    suffix:int=None,
+    save_to_tensorboard=False,
+    tb: SummaryWriter=None,
+    save_to_disk=True):
     """
     Create a 3x1 (or 2x1 if no truth tensor is supplied) grid from the given 2D image tensors and save the image with the given number as label
     """
@@ -271,34 +232,90 @@ def plot_sample(save_dir: str, input: torch.Tensor, pred: torch.Tensor, truth: t
     input = input - input.min()
     input = input / input.max()
     input = (input * 255).astype(np.uint8)
-        
-    pred = pred.squeeze().detach().cpu().numpy()
-    pred = (pred * 255).astype(np.uint8)
-
+    
     if truth is not None:
         truth = truth.squeeze().detach().cpu().numpy()
         truth = (truth * 255).astype(np.uint8)
 
-    inches = get_fig_size(input)
-    n = 2 if truth is None else 3
-    fig, _ = plt.subplots(1, n, figsize=(n*inches, inches))
-    plt.cla()
-    fig.axes[0].set_title("Input")
-    fig.axes[0].imshow(input)#, cmap='gray')
+    pred = pred.squeeze().detach().cpu().numpy()
+    pred = (pred * 255).astype(np.uint8)
 
-    fig.axes[1].set_title("Prediction")
-    fig.axes[1].imshow(pred)#, cmap='Greys')
+    name = path.split("/")[-1]
 
-    if truth is not None:
-        fig.axes[2].set_title("Graph")
-        fig.axes[2].imshow(truth)#, cmap='Greys')
+    if save_to_tensorboard:
+        if truth is not None:
+            if (len(pred.shape)==3):
+                input = np.tile(input[np.newaxis,:,:],[3,1,1])
+                images = np.stack([input, pred, truth])
+            else:
+                images = np.expand_dims(np.stack([input, pred, truth]),1)
+            label = f"{name} - Input, Pred, Truth"
+        else:
+            if (len(pred.shape)==3):
+                input = np.tile(input[np.newaxis,:,:],[3,1,1])
+                images = np.stack([input, pred])
+            else:
+                images = np.expand_dims(np.stack([input, pred]),1)
+            label = "Input, Pred"
+        tb.add_images(label, images)
+    
+    if save_to_disk:
+        inches = get_fig_size(input) / 2
+        fig, _ = plt.subplots(1, 3, figsize=(3*inches, inches))
+        fig.axes[0].set_title(f"{name} - Input")
+        if (input.shape[0]==3):
+            input = np.moveaxis(input,0,-1)
+        fig.axes[0].imshow(input)#, cmap='Greys')
 
-    if number is not None:
-        number = '_'+str(number)
-    else:
-        number=''
-    plt.savefig(os.path.join(save_dir, f'sample{number}.png'), bbox_inches='tight')
-    plt.close()
+        fig.axes[1].set_title("Prediction")
+        if (pred.shape[0]==3):
+            pred = np.moveaxis(pred,0,-1)
+        fig.axes[1].imshow(pred)#, cmap='Greys')
+
+        if truth is not None:
+            fig.axes[2].set_title("Truth")
+            if (truth.shape[0]==3):
+                truth = np.moveaxis(truth,0,-1)
+            fig.axes[2].imshow(truth)#, cmap='Greys')
+
+        if suffix is not None:
+            suffix = '_'+suffix
+        else:
+            suffix=''
+        plt.savefig(os.path.join(save_dir, f'sample{suffix}.png'), bbox_inches='tight')
+        plt.close()
+
+def plot_clf_sample(
+        save_dir: str,
+        input: torch.Tensor,
+        pred: torch.Tensor,
+        truth: torch.Tensor,
+        path: str,
+        suffix: int = None,
+        save_to_tensorboard=False,
+        tb: SummaryWriter=None,
+        save_to_disk: bool=True):
+    input = input.squeeze(1).detach().cpu().numpy()
+    input = input - input.min()
+    input = input / input.max()
+    input = (input * 255).astype(np.uint8)
+    if save_to_disk or save_to_tensorboard:
+        inches = get_fig_size(input)/2
+        n = min(3,input.shape[0])
+        fig = plt.subplots(1, n, figsize=(n*inches, inches))[0]
+        for i in range(n):
+            name = path[i].split("/")[-1]
+            fig.axes[i].set_title(f"{name} - Pred: {np.round(pred[i].detach().cpu().numpy(),2)}, Real: {truth[i].detach().cpu().numpy()}")
+            fig.axes[i].imshow(input[i])#, cmap='Greys')
+        if suffix is not None:
+            suffix = '_'+suffix
+        else:
+            suffix=''
+        plt.savefig(os.path.join(save_dir, f'sample{suffix}.png'), bbox_inches='tight')
+    if save_to_tensorboard:
+        tb.add_figure('sample', fig)
+    elif save_to_disk:
+        plt.close()
 
 def create_slim_3D_volume(img_2D_proj: torch.Tensor, save_dir: str, number: int = None):
     """

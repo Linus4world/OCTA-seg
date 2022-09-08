@@ -436,7 +436,7 @@ def efficientnet_b1(*, num_classes=1000, input_channels=1) -> EfficientNet:
     return EfficientNet(inverted_residual_setting, dropout=0.2, last_channel=last_channel, num_classes=num_classes, input_channels=input_channels)
 
 def efficientnet_b2(*, num_classes=1000, input_channels=1) -> EfficientNet:
-    inverted_residual_setting, last_channel = _efficientnet_conf("efficientnet_b2", width_mult=1.0, depth_mult=1.2)
+    inverted_residual_setting, last_channel = _efficientnet_conf("efficientnet_b2", width_mult=1.1, depth_mult=1.2)
     return EfficientNet(inverted_residual_setting, dropout=0.2, last_channel=last_channel, num_classes=num_classes, input_channels=input_channels)
 
 def init_weights(net: nn.Module, init_type='normal', init_gain=0.02, debug=False, nonlinearity='leaky_relu'):
