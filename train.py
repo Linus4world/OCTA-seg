@@ -8,7 +8,7 @@ import datetime
 from monai.data import decollate_batch
 from monai.utils import set_determinism
 from monai.networks.nets import DynUNet
-from networks import MODEL_DICT, init_weights, load_intermediate_net
+from models.networks import MODEL_DICT, init_weights, load_intermediate_net
 import time
 from tqdm import tqdm
 

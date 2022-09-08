@@ -8,7 +8,7 @@ import numpy as np
 from monai.data import decollate_batch
 from monai.utils import set_determinism
 from monai.networks.nets import DynUNet
-from networks import MODEL_DICT
+from models.networks import MODEL_DICT
 
 from image_dataset import get_dataset, get_post_transformation
 from metrics import Task

@@ -12,7 +12,7 @@ import torch
 
 from monai.data import decollate_batch
 from monai.utils import set_determinism
-from networks import ResNet, MODEL_DICT, init_weights, load_intermediate_net
+from models.networks import ResNet, MODEL_DICT, init_weights, load_intermediate_net
 from monai.networks.nets import DynUNet
 
 from image_dataset import get_dataset, get_post_transformation

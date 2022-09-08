@@ -8,7 +8,7 @@ import copy
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
 from monai.utils import set_determinism
-from networks import ResNet, resnet18, resnet50
+from models.networks import ResNet, resnet18, resnet50
 from monai.networks.nets import DynUNet
 from tqdm import tqdm
 
