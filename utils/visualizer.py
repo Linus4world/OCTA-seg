@@ -29,12 +29,13 @@ class Visualizer():
         if not os.path.isdir(config["Output"]["save_dir"]):
             os.mkdir(config["Output"]["save_dir"])
 
-        self.track_record: list[dict[str, dict[str, list[float]]]] = list()
+        self.track_record: list[dict[str, dict[str, float]]] = list()
         self.epochs = []
         self.log_file_path = None
 
         if continue_train:
-            self.save_dir = os.path.join(config["Output"]["save_dir"][:-15], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+            name = config["Output"]["save_dir"].split("/")[-1]
+            self.save_dir = os.path.join(config["Output"]["save_dir"][:-len(name)], datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
             os.mkdir(self.save_dir)
             self._copy_log_file(config["Output"]["save_dir"], self.save_dir)
             self._copy_best_checkpoint(config["Output"]["save_dir"], self.save_dir)
@@ -87,6 +88,9 @@ class Visualizer():
         old_best_checkpoint = os.path.join(old_dir, 'best_model.pth')
         new_best_checkpoint = os.path.join(new_dir, 'best_model.pth')
         copyfile(old_best_checkpoint,new_best_checkpoint)
+        old_latest_checkpoint = os.path.join(old_dir, 'latest_model.pth')
+        new_latest_checkpoint = os.path.join(new_dir, 'latest_model.pth')
+        copyfile(old_latest_checkpoint,new_latest_checkpoint)
 
     def plot_losses_and_metrics(self, metric_groups: dict[str, dict[str, float]], epoch: int):
         """
@@ -212,8 +216,12 @@ class Visualizer():
     def save_hyperparams(self, params: dict, metrics):
         self.tb.add_hparams(params, metrics)
 
+    def get_max_of_metric(self, metric_type: str, metric_name:str) -> tuple[float, int]:
+        metric_values = [m[metric_type][metric_name] for m in self.track_record]
+        return max(metric_values), np.argmax(metric_values)
+
 def plot_single_image(save_dir:str, input: torch.Tensor, number:int=None):
-    Image.fromarray((input.squeeze().detach().cpu().numpy()*255).astype(np.uint8)).save(os.path.join(save_dir, f'sample{number}.png'))
+    Image.fromarray((input.squeeze().detach().cpu().numpy()*255).astype(np.uint8)).save(os.path.join(save_dir, f'{number}.png'))
 
 def plot_sample(
     save_dir: str,
@@ -306,7 +314,10 @@ def plot_clf_sample(
         for i in range(n):
             name = path[i].split("/")[-1]
             fig.axes[i].set_title(f"{name} - Pred: {np.round(pred[i].detach().cpu().numpy(),2)}, Real: {truth[i].detach().cpu().numpy()}")
-            fig.axes[i].imshow(input[i])#, cmap='Greys')
+            if len(input[i].shape)==3:
+                fig.axes[i].imshow(input[i][-1])#, cmap='Greys')
+            else:
+                fig.axes[i].imshow(input[i])#, cmap='Greys')
         if suffix is not None:
             suffix = '_'+suffix
         else:

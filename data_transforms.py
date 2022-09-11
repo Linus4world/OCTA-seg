@@ -6,9 +6,73 @@ import math
 import random
 from PIL import Image
 
+from monai.networks.nets import DynUNet
+from utils.metrics import Task
+
+class FuseImageSegmentationd():
+    def __init__(self, image_key_label: str, seg_key_label: str, target_label: str, use_diff=False):
+        self.use_diff=use_diff
+        self.target_label=target_label
+        self.image_key_label = image_key_label
+        self.seg_key_label=seg_key_label
+
+    def __call__(self, data: dict):
+        if self.seg_key_label not in data:
+            return data
+        img: torch.Tensor = data[self.image_key_label]
+        seg: torch.Tensor = data[self.seg_key_label]
+        del data[self.image_key_label]
+        del data[self.seg_key_label]
+        if self.use_diff:
+            diff=img.clone()
+            diff[seg>0]=0
+            fused = torch.cat([img,seg,diff])
+        else:
+            fused = torch.cat([img,seg])
+        data[self.target_label]=fused
+        return data
+
+class VesselSegmentationd(MapTransform):
+    """
+    NOT USED
+    """
+    def __init__(self, keys: tuple[str], target_key: str, config: dict, get_post_transformation) -> None:
+        assert len(keys)==1
+        self.USE_SEG_INPUT = config["Data"]["use_segmentation"]
+        model_path: str = config["Train"]["model_path"]
+        num_layers = config["General"]["num_layers"]
+        kernel_size = config["General"]["kernel_size"]
+        self.device = "cpu"#torch.device(config["General"]["device"])
+        self.target_key = target_key
+        super().__init__(keys, False)
+
+        if self.USE_SEG_INPUT:
+            self.segmentation_model = DynUNet(
+                spatial_dims=2,
+                in_channels=1,
+                out_channels=1,
+                kernel_size=(3, *[kernel_size]*num_layers,3),
+                strides=(1,*[2]*num_layers,1),
+                upsample_kernel_size=(1,*[2]*num_layers,1),
+            ).to(self.device)
+            checkpoint = torch.load(model_path)
+            self.segmentation_model.load_state_dict(checkpoint['model'])
+            self.segmentation_model.eval()
+            self.post_itermediate, _ = get_post_transformation(Task.VESSEL_SEGMENTATION)
+
+    def __call__(self, data: dict):
+        if self.USE_SEG_INPUT:
+            img: torch.Tensor = data[self.keys[0]]
+
+            with torch.no_grad():
+                seg = self.segmentation_model(img.to(device=self.device).unsqueeze(0))
+                seg = [self.post_itermediate(inter) for inter in seg][0].cpu()
+            data[self.target_key] = seg
+        return data
+
 class AddRandomErasingd(MapTransform):
     def __init__(self, keys: tuple[str], prob = 1, min_area=0.04, max_area = 0.25):
-        super().__init__(keys, False)
+        super().__init__(keys, True)
         self.prob = prob
         self.max_area = max_area
         self.min_area = min_area
@@ -16,7 +80,7 @@ class AddRandomErasingd(MapTransform):
     def __call__(self, data: dict):
 
         if random.uniform(0,1)>self.prob:
-            return img
+            return data
 
         EPSISON = 1e-8
         h = random.uniform(EPSISON,1)
@@ -28,17 +92,18 @@ class AddRandomErasingd(MapTransform):
         s_h = None
 
         for key in self.keys:
-            img: torch.Tensor = data[key]
-            if s_h is None:
-                h_i = max(1,math.floor(h * img.shape[1]))
-                w_i = max(1,math.floor(w * img.shape[2]))
-                rect = torch.normal(0.5,0.1,([img.shape[0],h_i,w_i]))
-                s_h = random.randint(0,img.shape[1]-h_i)
-                s_w = random.randint(0,img.shape[2]-w_i)
+            if key in data:
+                img: torch.Tensor = data[key]
+                if s_h is None:
+                    h_i = max(1,math.floor(h * img.shape[1]))
+                    w_i = max(1,math.floor(w * img.shape[2]))
+                    rect = torch.normal(0.5,0.1,([img.shape[0],h_i,w_i]))
+                    s_h = random.randint(0,img.shape[1]-h_i)
+                    s_w = random.randint(0,img.shape[2]-w_i)
 
-            img[:,s_h:s_h+h_i,s_w:s_w+w_i] = rect
-            
-            data[key] = img
+                img[:,s_h:s_h+h_i,s_w:s_w+w_i] = rect
+                
+                data[key] = img
         return data
 
 class AddLineArtifact(MapTransform):
@@ -237,12 +302,20 @@ class AddRandomNoised(MapTransform):
             data["image"] = img
         return data
 
-class ToDict(Transform):
+class SplitImageLabel(Transform):
     """
     Clones the image tensor to create a label tensr and puts them in a dictionary.
     """
     def __call__(self, data: torch.Tensor, keys=["image", "label"]) -> dict[str, torch.Tensor]:
         return {keys[0]: data, keys[1]: torch.clone(data)}
+
+class SplitImageLabeld(Transform):
+    """
+    Clones the image tensor to create a label tensr and puts them in a dictionary.
+    """
+    def __call__(self, data: dict, keys=["image", "label"]) -> dict[str, torch.Tensor]:
+        data[keys[1]] = torch.clone(data[keys[0]])
+        return data
 
 class ToTensor(Transform):
     """
@@ -261,8 +334,9 @@ class Resized(MapTransform):
 
     def __call__(self, data) -> torch.Tensor:
         for key in self.keys:
-            d = data[key]
-            data[key] = torch.nn.functional.interpolate(d.unsqueeze(0), size=self.shape, mode='bilinear').squeeze(0)
+            if key in data:
+                d = data[key]
+                data[key] = torch.nn.functional.interpolate(d.unsqueeze(0), size=self.shape, mode='bilinear').squeeze(0)
         return data
 
 class RandCropOrPadd(MapTransform):

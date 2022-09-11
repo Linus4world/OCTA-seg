@@ -482,32 +482,3 @@ MODEL_DICT: dict[str, Union[ResNet, EfficientNet, DynUNet]] = {
     "efficientnet_b2": efficientnet_b2,
     "DynUNet": DynUNet
 }
-
-def load_intermediate_net(USE_SEG_INPUT: bool, model_path: str, num_layers: int, kernel_size: int, num_classes: int, device: str):
-    if USE_SEG_INPUT:
-        pre_model = DynUNet(
-            spatial_dims=2,
-            in_channels=1,
-            out_channels=1,
-            kernel_size=(3, *[kernel_size]*num_layers,3),
-            strides=(1,*[2]*num_layers,1),
-            upsample_kernel_size=(1,*[2]*num_layers,1),
-        ).to(device)
-        checkpoint = torch.load(model_path)
-        if 'model' in checkpoint:
-            pre_model.load_state_dict(checkpoint['model'])
-        else:
-            pre_model.load_state_dict(checkpoint)
-        pre_model.eval()
-        post_itermediate, _ = get_post_transformation(Task.VESSEL_SEGMENTATION, num_classes=num_classes)
-
-        def calculate_itermediate(inputs: torch.Tensor):
-            with torch.no_grad():
-                intermediate = pre_model(inputs)
-                intermediate = torch.stack([post_itermediate(inter) for inter in intermediate])
-                intermediate = torch.cat([inputs,intermediate], dim=1)
-                return intermediate
-    else:
-        def calculate_itermediate(inputs: torch.Tensor):
-            return inputs
-    return calculate_itermediate

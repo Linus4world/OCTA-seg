@@ -34,18 +34,17 @@ VAL_AMP = config["General"]["amp"]
 scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 task: Task = config["General"]["task"]
-visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT = config["Train"]["model_path"] != '')
+visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT = config["Data"]["use_segmentation"])
 
 train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')
 post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
-model, optimizer, calculate_itermediate = initialize_model(config, args)
+model, optimizer = initialize_model(config, args)
 
 with torch.no_grad():
     inputs = next(iter(train_loader))["image"].to(device=device, dtype=torch.float32)
-    intermediate = calculate_itermediate(inputs)
-    visualizer.save_model_architecture(model, intermediate)
+    visualizer.save_model_architecture(model, inputs)
 
 loss_name = config["Train"]["loss"]
 loss_function = get_loss_function_by_name(loss_name, config)
@@ -59,8 +58,11 @@ metrics = MetricsManager(task)
 
 
 # TRAINING BEGINS HERE
-best_metric = -1
-best_metric_epoch = -1
+if args.start_epoch>0:
+    best_metric, best_metric_epoch = visualizer.get_max_of_metric("metric", metrics.get_comp_metric('val'))
+else:
+    best_metric = -1
+    best_metric_epoch = -1
 
 total_start = time.time()
 epoch_tqdm = tqdm(range(args.start_epoch,max_epochs), desc="epoch")
@@ -78,8 +80,7 @@ for epoch in epoch_tqdm:
         )
         optimizer.zero_grad()
         with torch.cuda.amp.autocast():
-            intermediate = calculate_itermediate(inputs)
-            outputs = model(intermediate)
+            outputs = model(inputs)
             loss = loss_function(outputs, labels)
             labels = [post_label(i) for i in decollate_batch(labels)]
             outputs = [post_pred(i) for i in decollate_batch(outputs)]
@@ -113,8 +114,7 @@ for epoch in epoch_tqdm:
                     val_data["image"].to(device).float(),
                     val_data["label"].to(device),
                 )
-                intermediate = calculate_itermediate(val_inputs)
-                val_outputs: torch.Tensor = model(intermediate)
+                val_outputs: torch.Tensor = model(val_inputs)
                 val_loss += loss_function(val_outputs, val_labels).item()
                 val_labels = [post_label(i) for i in decollate_batch(val_labels)]
                 val_outputs = [post_pred(i) for i in decollate_batch(val_outputs)]

@@ -37,7 +37,7 @@ VAL_AMP = config["General"]["amp"]
 scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 
-model, optimizer, calculate_itermediate = initialize_model(config, args)
+model, optimizer = initialize_model(config, args, load_best=True)
 
 metrics = MetricsManager(task)
 predictions = []
@@ -57,8 +57,7 @@ with torch.no_grad():
                 val_data["image"].to(device).float(),
                 val_data["label"].to(device),
             )
-            intermediate = calculate_itermediate(val_inputs)
-            val_outputs: torch.Tensor = model(intermediate)
+            val_outputs: torch.Tensor = model(val_inputs)
             val_labels = [post_label(i) for i in decollate_batch(val_labels)]
             val_outputs = [post_pred(i) for i in decollate_batch(val_outputs)]
 

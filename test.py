@@ -38,7 +38,7 @@ VAL_AMP = config["General"]["amp"]
 scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 
-model, optimizer, calculate_itermediate = initialize_model(config, args)
+model, optimizer = initialize_model(config, args, load_best=True)
 predictions = []
 
 model.eval()
@@ -49,8 +49,7 @@ with torch.no_grad():
             break
         num_sample+=1
         val_inputs = test_data["image"].to(device)
-        intermediate = calculate_itermediate(val_inputs)
-        val_outputs = model(intermediate)
+        val_outputs = model(val_inputs)
         val_outputs = [post_trans(i).cpu() for i in decollate_batch(val_outputs)]
 
         if task == Task.VESSEL_SEGMENTATION:
