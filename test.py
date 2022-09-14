@@ -10,9 +10,10 @@ from monai.utils import set_determinism
 from models.model import initialize_model
 
 from image_dataset import get_dataset, get_post_transformation
+from utils.masks_to_nii import masks2nii
 from utils.metrics import Task
 
-from utils.visualizer import plot_sample, save_prediction_csv
+from utils.visualizer import plot_sample, plot_single_image, save_prediction_csv
 
 # Parse input arguments
 parser = argparse.ArgumentParser(description='')
@@ -35,7 +36,6 @@ post_trans, _ = get_post_transformation(task, num_classes=config["Data"]["num_cl
 
 VAL_AMP = config["General"]["amp"]
 # use amp to accelerate training
-scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 
 model, optimizer = initialize_model(config, args, load_best=True)
@@ -48,7 +48,7 @@ with torch.no_grad():
         if num_sample>=config["Test"]["num_samples"]:
             break
         num_sample+=1
-        val_inputs = test_data["image"].to(device)
+        val_inputs = test_data["image"].to(device).float()
         val_outputs = model(val_inputs)
         val_outputs = [post_trans(i).cpu() for i in decollate_batch(val_outputs)]
 
@@ -56,12 +56,18 @@ with torch.no_grad():
             # clean_seg = extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)
             # graph_file = os.path.join(config["Test"]["save_dir"], f'sample_{num_sample}_graph.json')
             # graph_img = graph_file_to_img(graph_file, val_outputs[0].shape[-2:])
-            plot_sample(config["Test"]["save_dir"], val_inputs[0], val_outputs[0], None, test_data["path"][0], number=num_sample)
+            # plot_sample(config["Test"]["save_dir"], val_inputs[0], val_outputs[0], None, test_data["path"][0], suffix=f"_{num_sample}")
             # plot_single_image(config["Test"]["save_dir"], val_inputs[0], num_sample*10+1)
-            # plot_single_image(config["Test"]["save_dir"], val_outputs[0], num_sample*10+2)
+            plot_single_image(config["Test"]["save_dir"], val_outputs[0], test_data["path"][0].split("/")[-1])
             # diff = val_inputs[0].clone()
             # diff[val_outputs[0]==1]=0
             # plot_single_image(config["Test"]["save_dir"], diff, num_sample*10+3)
+        elif task == Task.AREA_SEGMENTATION:
+            for i in range(len(val_outputs[0])):
+                dir = os.path.join(config["Test"]["save_dir"], str(i))
+                if not os.path.exists(dir):
+                    os.mkdir(dir)
+                plot_single_image(dir, val_outputs[0][i], test_data["path"][0].split("/")[-1])
         else:
             for i, path in enumerate(test_data["path"]):
                 predictions.append([str(path.split('/')[-1]), np.argmax(val_outputs[i].numpy()), *val_outputs[i].numpy().tolist()])
@@ -69,5 +75,9 @@ with torch.no_grad():
                 if difference!=0:
                     idx = np.argsort(predictions[-1][2:])[-2]+2
                     predictions[-1][idx] = predictions[-1][idx]-difference
-    if task == Task.RETINOPATHY_CLASSIFICATION or Task.IMAGE_QUALITY_CLASSIFICATION:
+    if task == Task.RETINOPATHY_CLASSIFICATION or task == Task.IMAGE_QUALITY_CLASSIFICATION:
         save_prediction_csv(config["Test"]["save_dir"], predictions)
+    elif task == Task.AREA_SEGMENTATION:
+        for i in range(len(val_outputs[0])):
+            dir = os.path.join(config["Test"]["save_dir"], str(i))
+            masks2nii(dir)

@@ -79,14 +79,14 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 AddChanneld(keys=["image", "segmentation"], allow_missing_keys=True),
                 Rand2DElasticd(keys=["image", "segmentation"], prob=0.5, spacing=(40,40), magnitude_range=(1,4), padding_mode='zeros', allow_missing_keys=True),
                 RandFlipd(keys=["image", "segmentation"], prob=.5, spatial_axis=[0, 1], allow_missing_keys=True),
-                RandRotate90d(keys=["image", "segmentation"], prob=.75, allow_missing_keys=True),
-                RandRotated(keys=["image", "segmentation"], prob=1, range_x=deg2rad(10), padding_mode="zeros", allow_missing_keys=True),
                 RandAdjustContrastd(keys=["image"], prob=1, gamma=(0.5,1.5)),
                 RandGaussianSmoothd(keys=["image"], prob=0.1, sigma_x=(0.25, 1.5), sigma_y=(0.25, 1.5)),
+                RandRotate90d(keys=["image", "segmentation"], prob=.75, allow_missing_keys=True),
+                RandRotated(keys=["image", "segmentation"], prob=1, range_x=deg2rad(10), padding_mode="zeros", allow_missing_keys=True),
                 # RandCropOrPadd(keys=["image"], prob=1, min_factor=0.7, max_factor=1.3),
                 # Resized(keys=["image", "segmentation"], shape=[1024,1024], allow_missing_keys=True),
+                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"], enhance_vessels=config["Data"]["enhance_vessels"]),
                 AddRandomErasingd(keys=["image", "segmentation"], prob=0.9, min_area=0.04, max_area=.25),
-                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"]),
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
                 CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
@@ -97,7 +97,7 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 AddChanneld(keys=["image", "segmentation"], allow_missing_keys=True),
                 Flipd(keys=["image", "segmentation"], spatial_axis=0, allow_missing_keys=True),
                 Rotate90d(keys=["image", "segmentation"], k=1, allow_missing_keys=True),
-                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"]),
+                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"], enhance_vessels=config["Data"]["enhance_vessels"]),
                 CastToTyped(keys=["image","label"], dtype=[dtype, torch.int64])
             ])
         else:
@@ -107,7 +107,7 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 AddChanneld(keys=["image","segmentation"], allow_missing_keys=True),
                 Flipd(keys=["image","segmentation"], spatial_axis=0, allow_missing_keys=True),
                 Rotate90d(keys=["image","segmentation"], k=1, allow_missing_keys=True),
-                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"]),
+                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"], enhance_vessels=config["Data"]["enhance_vessels"]),
                 CastToTyped(keys=["image"], dtype=[dtype])
             ])
     elif task == Task.IMAGE_QUALITY_CLASSIFICATION:
@@ -116,16 +116,17 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 LoadImaged(keys=["image","segmentation"], image_only=True, allow_missing_keys=True),
                 ScaleIntensityd(keys=["image", "segmentation"], minv=0, maxv=1, allow_missing_keys=True),
                 AddChanneld(keys=["image","segmentation"], allow_missing_keys=True),
-                Rand2DElasticd(keys=["image"], prob=.5, spacing=(40,40), magnitude_range=(1,4), padding_mode='zeros'),
+                Rand2DElasticd(keys=["image", "segmentation"], prob=.5, spacing=(40,40), magnitude_range=(1,4), padding_mode='zeros'),
+                # RandAdjustContrastd(keys=["image"], prob=.8, gamma=(0.5,1.5)),
+                # RandGaussianSmoothd(keys=["image"], prob=0.1, sigma_x=(0.25, 1.5), sigma_y=(0.25, 1.5)),
                 RandFlipd(keys=["image", "segmentation"], prob=.5, spatial_axis=[0, 1], allow_missing_keys=True),
                 RandRotate90d(keys=["image", "segmentation"], prob=.75, allow_missing_keys=True),
                 # RandRotated(keys=["image"], prob=1, range_x=deg2rad(10), padding_mode="zeros"),
                 # RandCropOrPadd(keys=["image"], prob=1, min_factor=0.7, max_factor=1.3),
-                Resized(keys=["image"], shape=[1024,1024]),
-                RandAdjustContrastd(keys=["image"], prob=1, gamma=(0.5,1.5)),
+                # Resized(keys=["image"], shape=[1024,1024]),
                 # RandBiasFieldd(keys=["image"], prob=0.1, degree=3, coeff_range=(0.1,0.3)),
-                RandGaussianSmoothd(keys=["image"], prob=0.1, sigma_x=(0.25, 1.5), sigma_y=(0.25, 1.5)),
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"], enhance_vessels=config["Data"]["enhance_vessels"]),
                 CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
         elif phase == "validation":
@@ -135,7 +136,7 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 AddChanneld(keys=["image","segmentation"], allow_missing_keys=True),
                 Flipd(keys=["image","segmentation"], spatial_axis=0, allow_missing_keys=True),
                 Rotate90d(keys=["image","segmentation"], k=1, allow_missing_keys=True),
-                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"]),
+                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"], enhance_vessels=config["Data"]["enhance_vessels"]),
                 CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
         else:
@@ -145,44 +146,44 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 AddChanneld(keys=["image","segmentation"], allow_missing_keys=True),
                 Flipd(keys=["image","segmentation"], spatial_axis=0, allow_missing_keys=True),
                 Rotate90d(keys=["image","segmentation"], k=1, allow_missing_keys=True),
-                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"]),
+                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"], enhance_vessels=config["Data"]["enhance_vessels"]),
                 CastToTyped(keys=["image"], dtype=[dtype])
             ])
     elif task == Task.AREA_SEGMENTATION:
         if phase == "train":
             return Compose([
-                LoadImaged(keys=["image","segmentation"], image_only=True, allow_missing_keys=True),
-                ScaleIntensityd(keys=["image", "segmentation"], minv=0, maxv=1, allow_missing_keys=True),
+                LoadImaged(keys=["image","segmentation", "label"], image_only=True, allow_missing_keys=True),
+                ScaleIntensityd(keys=["image", "segmentation", "label"], minv=0, maxv=1, allow_missing_keys=True),
                 AddChanneld(keys=["image","segmentation"], allow_missing_keys=True),
-                Rand2DElasticd(keys=["image"], prob=.5, spacing=(40,40), magnitude_range=(1,4), padding_mode='zeros'),
-                RandFlipd(keys=["image", "segmentation"], prob=.5, spatial_axis=[0, 1], allow_missing_keys=True),
-                RandRotate90d(keys=["image", "segmentation"], prob=.75, allow_missing_keys=True),
-                RandRotate90d(keys=["image", "segmentation"], prob=.75, allow_missing_keys=True),
-                RandRotated(keys=["image", "segmentation"], prob=1, range_x=deg2rad(10), padding_mode="zeros", allow_missing_keys=True),
+                Rand2DElasticd(keys=["image","segmentation", "label"], prob=.8, spacing=(40,40), magnitude_range=(1,4), padding_mode='zeros'),
                 RandAdjustContrastd(keys=["image"], prob=1, gamma=(0.5,1.5)),
-                RandGaussianSmoothd(keys=["image"], prob=0.1, sigma_x=(0.25, 1.5), sigma_y=(0.25, 1.5)),
-                AddRandomErasingd(keys=["image", "segmentation"], prob=0.9, min_area=0.04, max_area=.25),
-                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"]),
+                RandGaussianSmoothd(keys=["image"], prob=0.1, sigma_x=(0.25, 1.25), sigma_y=(0.25, 1.5)),
+                RandFlipd(keys=["image", "segmentation", "label"], prob=.5, spatial_axis=[0, 1], allow_missing_keys=True),
+                RandRotate90d(keys=["image", "segmentation", "label"], prob=.75, allow_missing_keys=True),
+                RandRotated(keys=["image", "segmentation", "label"], prob=1, range_x=deg2rad(10), padding_mode="zeros", allow_missing_keys=True),
+                # AddRandomErasingd(keys=["image", "segmentation"], prob=0.9, min_area=0.04, max_area=.25),
                 ScaleIntensityd(keys=["image"], minv=0, maxv=1),
+                AsDiscreted(keys=["label"], threshold=.5),
+                FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"], enhance_vessels=config["Data"]["enhance_vessels"]),
                 CastToTyped(keys=["image", "label"], dtype=dtype)
             ])
         elif phase == "validation":
             return Compose([
-                LoadImaged(keys=["image","segmentation"], image_only=True, allow_missing_keys=True),
-                ScaleIntensityd(keys=["image", "segmentation"], minv=0, maxv=1, allow_missing_keys=True),
+                LoadImaged(keys=["image","segmentation", "label"], image_only=True, allow_missing_keys=True),
+                ScaleIntensityd(keys=["image", "segmentation", "label"], minv=0, maxv=1, allow_missing_keys=True),
                 AddChanneld(keys=["image","segmentation"], allow_missing_keys=True),
-                Flipd(keys=["image","segmentation"], spatial_axis=0, allow_missing_keys=True),
-                Rotate90d(keys=["image","segmentation"], k=1, allow_missing_keys=True),
+                Flipd(keys=["image","segmentation", "label"], spatial_axis=0, allow_missing_keys=True),
+                Rotate90d(keys=["image","segmentation", "label"], k=1, allow_missing_keys=True),
                 FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"]),
                 CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
         else:
             return Compose([
-                LoadImaged(keys=["image","segmentation"], image_only=True, allow_missing_keys=True),
-                ScaleIntensityd(keys=["image", "segmentation"], minv=0, maxv=1, allow_missing_keys=True),
+                LoadImaged(keys=["image","segmentation", "label"], image_only=True, allow_missing_keys=True),
+                ScaleIntensityd(keys=["image", "segmentation", "label"], minv=0, maxv=1, allow_missing_keys=True),
                 AddChanneld(keys=["image","segmentation"], allow_missing_keys=True),
-                Flipd(keys=["image","segmentation"], spatial_axis=0, allow_missing_keys=True),
-                Rotate90d(keys=["image","segmentation"], k=1, allow_missing_keys=True),
+                Rotate90d(keys=["image","segmentation", "label"], k=1, allow_missing_keys=True),
+                Flipd(keys=["image","segmentation", "label"], spatial_axis=0, allow_missing_keys=True),
                 FuseImageSegmentationd(image_key_label="image", seg_key_label="segmentation", target_label="image", use_diff=config["Data"]["use_background"]),
                 CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
@@ -195,8 +196,11 @@ def get_post_transformation(task: Task, num_classes=2) -> tuple[Compose]:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), KeepLargestConnectedComponent()]), Compose([CastToType(dtype=torch.uint8)])
     elif task == task == Task.AREA_SEGMENTATION:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([CastToType(dtype=torch.uint8)])
-    else:
+    elif num_classes>1:
         return Compose([Activations(softmax=True)]), Compose([AsDiscrete(to_onehot=num_classes)])
+    else:
+        return Compose([AsOneHot(num_classes=3)]), Compose([AsDiscrete(to_onehot=3)])
+
 
 def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
     """
@@ -217,25 +221,29 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
     image_paths = get_custom_file_paths(*data_path)
     image_paths = array(image_paths)[indices].tolist()
 
-    if config["Data"]["use_segmentation"]:
-        seg_paths = get_custom_file_paths(* config["Data"]["dataset_segmentations"])
-        seg_paths = array(seg_paths)[indices].tolist()
-
     if task == Task.VESSEL_SEGMENTATION:
         train_files = [{"image": path, "path": path} for path in image_paths]
     elif task == Task.RETINOPATHY_CLASSIFICATION or task == Task.IMAGE_QUALITY_CLASSIFICATION:
+        if config["Data"]["use_segmentation"] or config["Data"]["enhance_vessels"]:
+            seg_paths = get_custom_file_paths(* config["Data"]["dataset_segmentations"])
+            seg_paths = array(seg_paths)[indices].tolist()
+        
         if config["Data"]["dataset_labels"] != '':
             reader = csv.reader(open(config["Data"]["dataset_labels"], 'r'))
             next(reader)
             labels = [int(v) for k, v in reader]
             labels = list(array(labels)[indices])
-            if config["Data"]["use_segmentation"]:
+            if config["Data"]["use_segmentation"] or config["Data"]["enhance_vessels"]:
                 train_files = [{"image": img, "segmentation": seg, "path": img, "label": torch.tensor(label)} for img, seg, label in zip(image_paths, seg_paths, labels)]
             else:
                 train_files = [{"image": img, "path": img, "label": torch.tensor(label)} for img, label in zip(image_paths, labels)]
         else:
             train_files = [{"image": img, "path": img} for img in image_paths]
     elif task == Task.AREA_SEGMENTATION:
+        if config["Data"]["use_segmentation"] or config["Data"]["enhance_vessels"]:
+            seg_paths = get_custom_file_paths(* config["Data"]["dataset_segmentations"])
+            seg_paths = array(seg_paths)[indices].tolist()
+        
         placeholder_path = os.path.join("/".join(config[phase.capitalize()]["dataset_path"].split('/')[:-1]),'placeholder.png')
         if config["Data"]["dataset_labels"]:
             train_files = []

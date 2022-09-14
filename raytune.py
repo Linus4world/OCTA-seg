@@ -56,7 +56,7 @@ def training_function(config_i: dict):
     if "model" in config_i:
         config_i["General"]["model"]=config_i["model"]
 
-    model, optimizer, calculate_itermediate = initialize_model(config_i, args)
+    model, optimizer = initialize_model(config_i, args)
 
     # If the trail was previously terminated or paused, it can be reloaded from a checkpoint. `Session.get_checkpoint` will automatically find the correct checkpoint.
     loaded_checkpoint = session.get_checkpoint()
@@ -88,8 +88,7 @@ def training_function(config_i: dict):
             )
             optimizer.zero_grad()
             with torch.cuda.amp.autocast():
-                intermediate = calculate_itermediate(inputs)
-                outputs = model(intermediate)
+                outputs = model(inputs)
                 loss: torch.Tensor = loss_function(outputs, labels)
                 train_loss.append(loss.item())
                 labels = [post_label(i) for i in decollate_batch(labels)]
@@ -111,8 +110,7 @@ def training_function(config_i: dict):
                     val_data["image"].to(device).float(),
                     val_data["label"].to(device),
                 )
-                intermediate = calculate_itermediate(val_inputs)
-                val_outputs: torch.Tensor = model(intermediate)
+                val_outputs: torch.Tensor = model(val_inputs)
                 val_loss.append(loss_function(val_outputs, val_labels).item())
                 
                 val_labels_post = [post_label(i) for i in decollate_batch(val_labels)]

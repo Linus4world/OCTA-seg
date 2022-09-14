@@ -164,7 +164,7 @@ class Visualizer():
             pred=pred,
             truth=truth,
             path=path,
-            number=suffix,
+            suffix=suffix,
             save_to_tensorboard=self.save_to_tensorboard,
             tb=self.tb,
             save_to_disk=self.save_to_disk)
@@ -220,8 +220,8 @@ class Visualizer():
         metric_values = [m[metric_type][metric_name] for m in self.track_record]
         return max(metric_values), np.argmax(metric_values)
 
-def plot_single_image(save_dir:str, input: torch.Tensor, number:int=None):
-    Image.fromarray((input.squeeze().detach().cpu().numpy()*255).astype(np.uint8)).save(os.path.join(save_dir, f'{number}.png'))
+def plot_single_image(save_dir:str, input: torch.Tensor, name:str=None):
+    Image.fromarray((input.squeeze().detach().cpu().numpy()*255).astype(np.uint8)).save(os.path.join(save_dir, name))
 
 def plot_sample(
     save_dir: str,
@@ -237,6 +237,8 @@ def plot_sample(
     Create a 3x1 (or 2x1 if no truth tensor is supplied) grid from the given 2D image tensors and save the image with the given number as label
     """
     input = input.squeeze().detach().cpu().numpy()
+    if len(input.shape)==3:
+        input=input[0]
     input = input - input.min()
     input = input / input.max()
     input = (input * 255).astype(np.uint8)

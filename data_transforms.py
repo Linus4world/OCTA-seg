@@ -9,12 +9,30 @@ from PIL import Image
 from monai.networks.nets import DynUNet
 from utils.metrics import Task
 
+class AsOneHot():
+    def __init__(self, num_classes=3) -> None:
+        self.num_classes = num_classes
+
+    def __call__(self, input: torch.Tensor):
+        ret = []
+        if input<0:
+            return torch.tensor([1, *[0]*(self.num_classes-1)])
+        if input>self.num_classes-1:
+            return torch.tensor([*[0]*(self.num_classes-1), 1])
+        for c in range(self.num_classes):
+            if c-1<input<c+1:
+                ret.append(1-abs(c-input))
+            else:
+                ret.append(0)
+        return torch.tensor(ret)
+
 class FuseImageSegmentationd():
-    def __init__(self, image_key_label: str, seg_key_label: str, target_label: str, use_diff=False):
+    def __init__(self, image_key_label: str, seg_key_label: str, target_label: str, use_diff=False, enhance_vessels=False):
         self.use_diff=use_diff
         self.target_label=target_label
         self.image_key_label = image_key_label
         self.seg_key_label=seg_key_label
+        self.enhance_vessels = enhance_vessels
 
     def __call__(self, data: dict):
         if self.seg_key_label not in data:
@@ -27,6 +45,9 @@ class FuseImageSegmentationd():
             diff=img.clone()
             diff[seg>0]=0
             fused = torch.cat([img,seg,diff])
+        elif self.enhance_vessels:
+            fused = img.clone()
+            fused[seg>0.5]=1
         else:
             fused = torch.cat([img,seg])
         data[self.target_label]=fused

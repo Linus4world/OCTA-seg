@@ -34,7 +34,7 @@ VAL_AMP = config["General"]["amp"]
 scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 task: Task = config["General"]["task"]
-visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT = config["Data"]["use_segmentation"])
+visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT = config["Data"]["use_segmentation"] or config["Data"]["enhance_vessels"])
 
 train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')
@@ -81,6 +81,9 @@ for epoch in epoch_tqdm:
         optimizer.zero_grad()
         with torch.cuda.amp.autocast():
             outputs = model(inputs)
+            if config["Data"]["num_classes"]==1:
+                outputs=outputs.squeeze(-1)
+                labels=labels.to(dtype=outputs.dtype)
             loss = loss_function(outputs, labels)
             labels = [post_label(i) for i in decollate_batch(labels)]
             outputs = [post_pred(i) for i in decollate_batch(outputs)]
@@ -115,6 +118,9 @@ for epoch in epoch_tqdm:
                     val_data["label"].to(device),
                 )
                 val_outputs: torch.Tensor = model(val_inputs)
+                if config["Data"]["num_classes"]==1:
+                    val_outputs=val_outputs.squeeze(-1)
+                    val_labels=val_labels.to(dtype=val_outputs.dtype)
                 val_loss += loss_function(val_outputs, val_labels).item()
                 val_labels = [post_label(i) for i in decollate_batch(val_labels)]
                 val_outputs = [post_pred(i) for i in decollate_batch(val_outputs)]

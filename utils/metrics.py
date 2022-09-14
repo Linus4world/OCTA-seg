@@ -2,7 +2,7 @@
 from typing import Union
 import numpy as np
 import torch
-from monai.metrics import DiceMetric, MeanIoU, ROCAUCMetric
+from monai.metrics import MeanIoU, ROCAUCMetric
 from utils.cl_dice_loss import clDiceLoss
 from monai.losses import DiceLoss
 
@@ -89,21 +89,46 @@ class QuadraticWeightedKappa:
         self.preds = []
         self.labels = []
 
-class SigmoidDiceBCELoss():
-    def __init__(self):
-        super().__init__()
-        self.bce = torch.nn.BCEWithLogitsLoss()
-        self.dice = DiceLoss(sigmoid=True)
+class MacroDiceMetric:
+    def __init__(self) -> None:
+        self.preds=[]
+        self.labels=[]
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
-        return (self.dice(y_pred, y) + self.bce(y_pred, y))/2
-       
+    def get_dice(self, gt, pred, classId=1):
+        if np.sum(gt) == 0:
+            return np.nan
+        else:
+            intersection = np.logical_and(gt == classId, pred == classId)
+            dice_eff = (2. * intersection.sum()) / (gt.sum() + pred.sum())
+            return dice_eff
+
+    def __call__(self, y_pred: list[torch.Tensor], y: list[torch.Tensor]):
+        for y_pred_i, y_i in zip(y_pred, y):
+            for layer in range(len(y_pred_i)):
+                self.preds.append(y_pred_i[layer].detach().cpu().numpy())
+                self.labels.append(y_i[layer].detach().cpu().numpy())
+
+    def aggregate(self) -> torch.Tensor:
+        if len(self.preds) > 0:
+            dice_list = []
+            for gt_array, pred_array in zip(self.labels, self.preds):
+                dice = self.get_dice(gt_array, pred_array, 1)
+                dice_list.append(dice)
+            mDice = np.nanmean(dice_list)
+            return torch.tensor(mDice)
+        else:
+            return torch.tensor(0)
+
+    def reset(self):
+        self.preds = []
+        self.labels = []
+
 
 class MetricsManager():
     def __init__(self, task: Task):
         if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
             self.metrics = {
-                "DSC": DiceMetric(include_background=True, reduction="mean"),
+                "DSC": MacroDiceMetric(),
                 "IoU": MeanIoU(include_background=True, reduction="mean")
             }
             self.comp = "DSC"
@@ -128,6 +153,16 @@ class MetricsManager():
     def get_comp_metric(self, prefix: str):
         return f'{prefix}_{self.comp}'
 
+
+class SigmoidDiceBCELoss():
+    def __init__(self):
+        super().__init__()
+        self.bce = torch.nn.BCEWithLogitsLoss()
+        self.dice = DiceLoss(sigmoid=True)
+
+    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+        return (self.dice(y_pred, y) + self.bce(y_pred, y.float()))/2
+
 class WeightedCosineLoss():
     def __init__(self, weights=[1,1,1]) -> None:
         self.weights = weights
@@ -139,6 +174,58 @@ class WeightedCosineLoss():
         sample_weights = torch.tensor([self.weights[y_i] for y_i in y], device=y.device)
         weighted_cosine_sim = sample_weights * cosine_sim
         return 1- (torch.sum(weighted_cosine_sim)/sample_weights.sum())
+
+
+
+def quadratic_kappa_coefficient(output, target):
+    n_classes = target.shape[-1]
+    weights = torch.arange(0, n_classes, dtype=torch.float32, device=output.device) / (n_classes - 1)
+    weights = (weights - torch.unsqueeze(weights, -1)) ** 2
+
+    C = (output.t() @ target).t()  # confusion matrix
+
+    hist_true = torch.sum(target, dim=0).unsqueeze(-1)
+    hist_pred = torch.sum(output, dim=0).unsqueeze(-1)
+
+    E = hist_true @ hist_pred.t()  # Outer product of histograms
+    E = E / C.sum() # Normalize to the sum of C.
+
+    num = weights * C
+    den = weights * E
+
+    QWK = 1 - torch.sum(num) / torch.sum(den)
+    return QWK
+
+
+
+def quadratic_kappa_loss(output, target, scale=2.0):
+    QWK = quadratic_kappa_coefficient(output, target)
+    loss = -torch.log(torch.sigmoid(scale * QWK))
+    return loss
+
+class QWKLoss(torch.nn.Module):
+    def __init__(self, scale=2.0, num_classes=3):
+        super().__init__()
+        self.scale = scale
+        self.num_classes = num_classes
+
+    def forward(self, output, target):
+        # Keep trace of output dtype for half precision training
+        target = torch.nn.functional.one_hot(target.squeeze().long(), num_classes=self.num_classes).to(target.device).type(output.dtype)
+        output = torch.softmax(output, dim=1)
+        return quadratic_kappa_loss(output, target, self.scale)
+
+class WeightedMSELoss():
+    def __init__(self, weights: list) -> None:
+        self.weights = weights
+        self.mse = torch.nn.MSELoss(reduction='none')
+
+    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        loss_per_sample = self.mse(y_pred, y)
+        sample_weights = torch.tensor([self.weights[y_i] for y_i in y.long()], device=y.device)
+        weighted_loss = loss_per_sample*sample_weights
+        return torch.sum(weighted_loss)/sample_weights.sum()
+
 
 
 def get_loss_function(task: Task, config: dict) -> tuple[str, Union[clDiceLoss, SigmoidDiceBCELoss, torch.nn.CrossEntropyLoss]]:
@@ -155,6 +242,8 @@ def get_loss_function_by_name(name: str, config: dict) -> Union[clDiceLoss, Sigm
         # "clDiceLoss": clDiceLoss(alpha=config["Train"]["lambda_cl_dice"], sigmoid=True),
         "DiceBCELoss": SigmoidDiceBCELoss(),
         "CrossEntropyLoss": torch.nn.CrossEntropyLoss(weight=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),
-        "CosineEmbeddingLoss": WeightedCosineLoss(weights=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"]))
+        "CosineEmbeddingLoss": WeightedCosineLoss(weights=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),
+        "MSELoss": WeightedMSELoss(weights=1/torch.tensor(config["Data"]["class_balance"])),
+        "QWKLoss": QWKLoss()
     }
     return loss_map[name]

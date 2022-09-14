@@ -22,9 +22,9 @@ path = os.path.abspath(args.config_file)
 with open(path) as filepath:
     config = json.load(filepath)
 
-if not os.path.exists(config["Validation"]["save_dir"]):
-    os.mkdir(config["Validation"]["save_dir"])
-set_determinism(seed=0)
+# if not os.path.exists(config["Validation"]["save_dir"]):
+#     os.mkdir(config["Validation"]["save_dir"])
+# set_determinism(seed=0)
 config["Validation"]["batch_size"]=1
 
 task: Task = config["General"]["task"]
@@ -41,8 +41,9 @@ model, optimizer = initialize_model(config, args, load_best=True)
 
 metrics = MetricsManager(task)
 predictions = []
-tp_per_class = np.array([0 for _ in range(config["Data"]["num_classes"])])
-num_pos_per_class = np.array([0 for _ in range(config["Data"]["num_classes"])])
+num_classes = config["Data"]["num_classes"] if config["Data"]["num_classes"]>1 else 3
+tp_per_class = np.array([0 for _ in range(num_classes)])
+num_pos_per_class = np.array([0 for _ in range(num_classes)])
 
 model.eval()
 with torch.no_grad():

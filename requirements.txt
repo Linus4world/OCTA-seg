@@ -6,3 +6,7 @@ ipykernel
 monai
 prettytable
 tensorboard
+opencv-python
+SimpleITK
+ray[tune]
+hyperopt

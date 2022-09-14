@@ -13,7 +13,6 @@ def initialize_model(config: dict, args, load_best=False):
     model_path: str = config["Test"]["model_path"]
     num_classes=config["Data"]["num_classes"]
     model_name: str = config["General"]["model"]
-
     if task == Task.VESSEL_SEGMENTATION:
         model = MODEL_DICT[config["General"]["model"]](
             spatial_dims=2,
@@ -24,6 +23,10 @@ def initialize_model(config: dict, args, load_best=False):
             upsample_kernel_size=(1,*[2]*num_layers,1),
         ).to(device)
     elif task == Task.AREA_SEGMENTATION:
+        if config["Data"]["enhance_vessels"]:
+            input_channels=1
+        else:
+            input_channels=sum([True, config["Data"]["use_segmentation"], config["Data"]["use_background"]])
         model = MODEL_DICT[config["General"]["model"]](
             spatial_dims=2,
             in_channels=sum([True, config["Data"]["use_segmentation"], config["Data"]["use_background"]]),
@@ -33,16 +36,22 @@ def initialize_model(config: dict, args, load_best=False):
             upsample_kernel_size=(1,*[2]*num_layers,1),
         ).to(device)
         # Use pretrained
-        # if USE_SEG_INPUT:
-        #     if 'model' in checkpoint:
-        #         model.load_state_dict(checkpoint['model'], strict=False)
-        #     else:
-        #         # filter unnecessary keys
-        #         pretrained_dict = {k: v for k, v in checkpoint.items() if
-        #                             (k in model.state_dict().keys()) and (model.state_dict()[k].shape == checkpoint[k].shape)}
-        #         model.load_state_dict(pretrained_dict, strict=False)
+        if task == Task.AREA_SEGMENTATION and "pretrained_model" in config["Train"]:
+            checkpoint = torch.load(config["Train"]["pretrained_model"])
+            if 'model' in checkpoint:
+                pretrained_dict = {k: v for k, v in checkpoint['model'].items() if
+                                    (k in model.state_dict().keys()) and (model.state_dict()[k].shape == checkpoint['model'][k].shape)}
+            else:
+                # filter unnecessary keys
+                pretrained_dict = {k: v for k, v in checkpoint.items() if
+                                    (k in model.state_dict().keys()) and (model.state_dict()[k].shape == checkpoint[k].shape)}
+            model.load_state_dict(pretrained_dict, strict=False)
     else:
-        model = MODEL_DICT[model_name](num_classes=num_classes, input_channels=sum([True, config["Data"]["use_segmentation"], config["Data"]["use_background"]])).to(device)
+        if config["Data"]["enhance_vessels"]:
+            input_channels=1
+        else:
+            input_channels=sum([True, config["Data"]["use_segmentation"], config["Data"]["use_background"]])
+        model = MODEL_DICT[model_name](num_classes=num_classes, input_channels=input_channels).to(device)
 
     if hasattr(args, "start_epoch") and args.start_epoch>0:
         checkpoint = torch.load(model_path.replace('best_model', 'latest_model'))
