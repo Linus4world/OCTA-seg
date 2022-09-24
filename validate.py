@@ -73,4 +73,5 @@ with torch.no_grad():
                 metrics(val_outputs, val_labels)
                 
         print(f'Accuracy per class: {tp_per_class/num_pos_per_class}')
-        print(f'Metrics: {metrics.aggregate_and_reset("val")}')
+        metrics = {k: str(round(v, 4)) for k,v in metrics.aggregate_and_reset("val").items()}
+        print(f'Metrics: {metrics}')

@@ -5,8 +5,7 @@
         "model": "resnet18",
         "num_layers": 3,
         "kernel_size": 3,
-        "task": "ret-clf",
-        "seed": 0
+        "task": "ret-clf"
     },
     "Data": {
         "dataset_images": ["/home/shared/Data/DRAC22/C. Diabetic Retinopathy Grading/1. Original Images/a. Training Set", ".png"],

@@ -3,6 +3,7 @@ import json
 import os
 import torch
 import datetime
+from random import randint
 
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
@@ -26,7 +27,10 @@ path = os.path.abspath(args.config_file)
 with open(path) as filepath:
     config = json.load(filepath)
 
-set_determinism(seed=config["General"]["seed"] if "seed" in config["General"] else 0)
+if "seed" not in config["General"]:
+    config["General"]["seed"] = randint(0,1e6)
+set_determinism(seed=config["General"]["seed"])
+
 max_epochs = config["Train"]["epochs"]
 val_interval = config["Train"]["val_interval"]
 VAL_AMP = config["General"]["amp"]
@@ -134,7 +138,7 @@ for epoch in epoch_tqdm:
             visualizer.save_model(model, optimizer, epoch, 'latest')
             if metric_comp > best_metric:
                 best_metric = metric_comp
-                best_metric_epoch = epoch + 1
+                best_metric_epoch = epoch
                 visualizer.save_model(model, optimizer, epoch, 'best')
 
             visualizer.plot_losses_and_metrics(epoch_metrics, epoch)

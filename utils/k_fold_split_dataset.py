@@ -2,7 +2,6 @@ import os
 import random
 import csv
 import numpy as np
-import matplotlib.pyplot as plt
 
 def get_custom_file_paths(folder, name):
     image_file_paths = []
@@ -17,40 +16,67 @@ def mkdir(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
+K = 5
+stratified = True
+train_split = 0.8
+
 random.seed(0)
 data_root = '/home/lkreitner/OCTA-seg/datasets/'
 mkdir(data_root)
-data_root = '/home/lkreitner/OCTA-seg/datasets/DRAC_C'
+data_root = '/home/lkreitner/OCTA-seg/datasets/DRAC_B'
 mkdir(data_root)
 
-labels_file = "/home/shared/Data/DRAC22/C. Diabetic Retinopathy Grading/2. Groundtruths/a. DRAC2022_ Diabetic Retinopathy Grading_Training Labels.csv"
+labels_file = "/home/shared/Data/DRAC22/B. Image Quality Assessment/2. Groundtruths/a. DRAC2022_ Image Quality Assessment_Training Labels.csv"
 reader = csv.reader(open(labels_file, 'r'))
 next(reader)
 all_labels = np.array([int(v) for k, v in reader])
+all_indices=list(range(len(all_labels)))
 
-indices_0 = np.where(all_labels==0)[0]
-indices_1  = np.where(all_labels==1)[0]
-indices_2  = np.where(all_labels==2)[0]
-
-train_split = 0.8
-
-for i in range(10):
+if stratified:
+    indices_0 = np.where(all_labels==0)[0]
+    indices_1 = np.where(all_labels==1)[0]
+    indices_2 = np.where(all_labels==2)[0]
     random.shuffle(indices_0)
     random.shuffle(indices_1)
     random.shuffle(indices_2)
 
-    train_split_i = [
-        *indices_0[:int(len(indices_0)*0.8)],
-        *indices_1[:int(len(indices_1)*0.8)],
-        *indices_2[:int(len(indices_2)*0.8)]
-    ]
-    val_split_i = [
-        *indices_0[int(len(indices_0)*0.8):],
-        *indices_1[int(len(indices_1)*0.8):],
-        *indices_2[int(len(indices_2)*0.8):]
-    ]
-    with open(os.path.join(data_root, f'train_{i}.txt'), 'w+') as f:
-        f.writelines([f"{i}\n" for i in train_split_i])
-    with open(os.path.join(data_root, f'val_{i}.txt'), 'w+') as f:
-        f.writelines([f"{i}\n" for i in val_split_i])
+    start_ind_0 = 0
+    end_ind_0 = 0
+    start_ind_1 = 0
+    end_ind_1 = 0
+    start_ind_2 = 0
+    end_ind_2 = 0
+    for i in range(K):
+        start_ind_0 = end_ind_0
+        end_ind_0 = round(((i+1)/K) * len(indices_0))
+        start_ind_1 = end_ind_1
+        end_ind_1 = round(((i+1)/K) * len(indices_1))
+        start_ind_2 = end_ind_2
+        end_ind_2 = round(((i+1)/K) * len(indices_2))
+
+        val_split_i = np.sort([
+            *indices_0[start_ind_0:end_ind_0],
+            *indices_1[start_ind_1:end_ind_1],
+            *indices_2[start_ind_2:end_ind_2]
+        ])
+        train_split_i = [l for l in all_indices if l not in val_split_i]
+
+        with open(os.path.join(data_root, f'train_{i}.txt'), 'w+') as f:
+            f.writelines([f"{i}\n" for i in train_split_i])
+        with open(os.path.join(data_root, f'val_{i}.txt'), 'w+') as f:
+            f.writelines([f"{i}\n" for i in val_split_i])
+else:
+    random.shuffle(all_indices)
+    start_ind = None
+    end_ind = 0
+    for i in range(K):
+        start_ind = end_ind
+        end_ind = ((i+1)/K) * len(all_indices)
+        val_split_i = np.sort(all_indices[start_ind:end_ind])
+        train_split_i = np.sort([l for l in all_indices if l not in val_split_i])
+
+        with open(os.path.join(data_root, f'train_{i}.txt'), 'w+') as f:
+            f.writelines([f"{i}\n" for i in train_split_i])
+        with open(os.path.join(data_root, f'val_{i}.txt'), 'w+') as f:
+            f.writelines([f"{i}\n" for i in val_split_i])
 
