@@ -2,7 +2,7 @@
     "General": {
         "amp": true,
         "device": "cuda:0",
-        "model": "resnet18",
+        "model": "efficientnet_b0",
         "num_layers": 3,
         "kernel_size": 3,
         "task": "ret-clf"
@@ -18,8 +18,8 @@
         "enhance_vessels": false
     },
     "Train": {
-        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/DRAC_C/train_0.txt",
-        "epochs": 300,
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/DRAC_C/train_4.txt",
+        "epochs": 500,
         "epochs_decay": 0,
         "val_interval": 1,
         "batch_size": 8,
@@ -29,7 +29,7 @@
     },
     "Validation": {
         "batch_size": 4,
-        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/DRAC_C/val_0.txt"
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/DRAC_C/val_4.txt"
     },
     "Test": {
         "batch_size": 1,
@@ -40,7 +40,7 @@
         "save_images": false
     },
     "Output": {
-        "save_dir": "/home/lkreitner/OCTA-seg/results/ret-clf/new_runs",
+        "save_dir": "/home/lkreitner/OCTA-seg/results/ret-clf/cross_val",
         "save_to_disk": true,
         "save_to_tensorboard": true,
         "save_interval": 1
