@@ -38,7 +38,11 @@ VAL_AMP = config["General"]["amp"]
 scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 task: Task = config["General"]["task"]
-visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT = config["Data"]["use_segmentation"] or config["Data"]["enhance_vessels"])
+if task != Task.VESSEL_SEGMENTATION:
+    USE_SEG_INPUT = config["Data"]["use_segmentation"] or config["Data"]["enhance_vessels"]
+else:
+    USE_SEG_INPUT = False
+visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT=USE_SEG_INPUT)
 
 train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')

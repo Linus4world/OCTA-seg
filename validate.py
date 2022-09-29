@@ -6,7 +6,6 @@ from tqdm import tqdm
 import numpy as np
 
 from monai.data import decollate_batch
-from monai.utils import set_determinism
 from models.model import initialize_model
 
 from image_dataset import get_dataset, get_post_transformation
@@ -22,9 +21,6 @@ path = os.path.abspath(args.config_file)
 with open(path) as filepath:
     config = json.load(filepath)
 
-# if not os.path.exists(config["Validation"]["save_dir"]):
-#     os.mkdir(config["Validation"]["save_dir"])
-# set_determinism(seed=0)
 config["Validation"]["batch_size"]=1
 
 task: Task = config["General"]["task"]
@@ -64,14 +60,14 @@ with torch.no_grad():
 
             if task == Task.VESSEL_SEGMENTATION:
                 pass
-            else:
+            elif task == Task.IMAGE_QUALITY_CLASSIFICATION or task == Task.RETINOPATHY_CLASSIFICATION:
                 pred_label=np.argmax(val_outputs[0].detach().cpu().numpy())
                 true_label = np.argmax(val_labels[0].numpy())
                 if pred_label==true_label:
                     tp_per_class[pred_label] += 1
                 num_pos_per_class[true_label] += 1
-                metrics(val_outputs, val_labels)
+                print(f'Accuracy per class: {tp_per_class/num_pos_per_class}')
+            metrics(val_outputs, val_labels)
                 
-        print(f'Accuracy per class: {tp_per_class/num_pos_per_class}')
         metrics = {k: str(round(v, 4)) for k,v in metrics.aggregate_and_reset("val").items()}
         print(f'Metrics: {metrics}')

@@ -232,7 +232,8 @@ def plot_sample(
     suffix:int=None,
     save_to_tensorboard=False,
     tb: SummaryWriter=None,
-    save_to_disk=True):
+    save_to_disk=True,
+    full_size=False):
     """
     Create a 3x1 (or 2x1 if no truth tensor is supplied) grid from the given 2D image tensors and save the image with the given number as label
     """
@@ -251,8 +252,10 @@ def plot_sample(
     pred = (pred * 255).astype(np.uint8)
 
     name = path.split("/")[-1]
+    n = 2 if truth is None else 3
 
     if save_to_tensorboard:
+        # TODO use n
         if truth is not None:
             if (len(pred.shape)==3):
                 input = np.tile(input[np.newaxis,:,:],[3,1,1])
@@ -270,8 +273,8 @@ def plot_sample(
         tb.add_images(label, images)
     
     if save_to_disk:
-        inches = get_fig_size(input) / 2
-        fig, _ = plt.subplots(1, 3, figsize=(3*inches, inches))
+        inches = get_fig_size(input) / (1 if full_size else 2)
+        fig, _ = plt.subplots(1, n, figsize=(n*inches, inches))
         fig.axes[0].set_title(f"{name} - Input")
         if (input.shape[0]==3):
             input = np.moveaxis(input,0,-1)
