@@ -154,11 +154,11 @@ class MetricsManager():
         return f'{prefix}_{self.comp}'
 
 
-class SigmoidDiceBCELoss():
-    def __init__(self):
+class DiceBCELoss():
+    def __init__(self, sigmoid=False):
         super().__init__()
         self.bce = torch.nn.BCEWithLogitsLoss()
-        self.dice = DiceLoss(sigmoid=True)
+        self.dice = DiceLoss(sigmoid=sigmoid)
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
         return (self.dice(y_pred, y) + self.bce(y_pred, y.float()))/2
@@ -237,13 +237,14 @@ def get_loss_function(task: Task, config: dict) -> tuple[str, Union[clDiceLoss, 
         # return 'CrossEntropyLoss', torch.nn.CrossEntropyLoss(weights=torch.tensor([1/0.537,1/0.349,1/0.115]))
         return "CosineEmbeddingLoss", WeightedCosineLoss(weights=[1/0.537,1/0.349,1/0.115])
 
-def get_loss_function_by_name(name: str, config: dict) -> Union[clDiceLoss, SigmoidDiceBCELoss, torch.nn.CrossEntropyLoss, WeightedCosineLoss]:
+def get_loss_function_by_name(name: str, config: dict) -> Union[clDiceLoss, DiceBCELoss, torch.nn.CrossEntropyLoss, WeightedCosineLoss]:
     loss_map = {
-        "clDiceLoss": clDiceLoss(alpha=config["Train"]["lambda_cl_dice"], sigmoid=True),
-        "DiceBCELoss": SigmoidDiceBCELoss(),
+        "clDiceLoss": clDiceLoss(alpha=config["Train"]["lambda_cl_dice"]),
+        "DiceBCELoss": DiceBCELoss(),
         "CrossEntropyLoss": torch.nn.CrossEntropyLoss(weight=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),
         "CosineEmbeddingLoss": WeightedCosineLoss(weights=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),
-        "MSELoss": WeightedMSELoss(weights=1/torch.tensor(config["Data"]["class_balance"])),
-        "QWKLoss": QWKLoss()
+        "MSELoss": torch.nn.MSELoss(),
+        "WeightedMSELoss": WeightedMSELoss(weights=1/torch.tensor(config["Data"]["class_balance"])),
+        "QWKLoss": QWKLoss(),
     }
     return loss_map[name]

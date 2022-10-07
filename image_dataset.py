@@ -9,6 +9,7 @@ import torch
 from monai.data.meta_obj import set_track_meta
 
 from utils.metrics import Task
+from utils.unalignedZipDataset import UnalignedZipDataset
 set_track_meta(False)
 
 def get_custom_file_paths(folder, name):
@@ -70,6 +71,23 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 Rotate90d(keys=["image"], k=1),
                 Flipd(keys=["image"], spatial_axis=0),
                 CastToTyped(keys=["image"], dtype=dtype)
+            ])
+    elif task == Task.GAN_VESSEL_SEGMENTATION:
+        if phase == "train":
+            return Compose([
+                LoadImaged(keys=["real_A", "real_B"], image_only=True),
+                ScaleIntensityd(keys=["real_A", "real_B"], minv=0, maxv=1),
+                AddChanneld(keys=["real_A", "real_B"]),
+                RandFlipd(keys=["real_A", "real_B"], prob=0.5, spatial_axis=[0,1]),
+                # Rand2DElasticd(keys=["real_A", "real_B"], prob=.5, spacing=(40,40), magnitude_range=(1,4), padding_mode='zeros'),
+                RandRotate90d(keys=["real_A", "real_B"], prob=.75),
+                # RandRotated(keys=["real_A", "real_B"], prob=0.75, range_x=deg2rad(10), padding_mode="zeros"),
+                Resized(keys=["real_B"], shape=(1216,1216)),
+                RandCropOrPadd(keys=["real_A", "real_B"], prob=1, min_factor=0.25, max_factor=0.25),
+                ScaleIntensityd(keys=["real_A", "real_B"], minv=0, maxv=1),
+                SplitImageLabeld(keys=["real_A", "real_A_seg"]),
+                AsDiscreted(keys=["real_A_seg"],threshold=0.1),
+                CastToTyped(keys=["real_A", "real_A_seg", "real_B"], dtype=dtype)
             ])
     elif task == Task.RETINOPATHY_CLASSIFICATION:
         if phase == "train":
@@ -194,6 +212,8 @@ def get_post_transformation(task: Task, num_classes=2) -> tuple[Compose]:
     """
     if task == Task.VESSEL_SEGMENTATION:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), KeepLargestConnectedComponent()]), Compose([CastToType(dtype=torch.uint8)])
+    elif task == Task.GAN_VESSEL_SEGMENTATION:
+        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose()
     elif task == task == Task.AREA_SEGMENTATION:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([CastToType(dtype=torch.uint8)])
     elif num_classes>1:
@@ -223,9 +243,18 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
 
     if task == Task.VESSEL_SEGMENTATION:
         train_files = [{"image": path, "path": path} for path in image_paths]
+    elif task == Task.GAN_VESSEL_SEGMENTATION:
+        if phase != "test":
+            A_paths = get_custom_file_paths(*config["Data"]["synthetic_images"])
+        else:
+            A_paths = None
+        data_set = UnalignedZipDataset(A_paths, image_paths, transform)
+        loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=4, pin_memory=torch.cuda.is_available())
+        return loader
     elif task == Task.RETINOPATHY_CLASSIFICATION or task == Task.IMAGE_QUALITY_CLASSIFICATION:
         if config["Data"]["use_segmentation"] or config["Data"]["enhance_vessels"]:
-            seg_paths = get_custom_file_paths(* config["Data"]["dataset_segmentations"])
+            seg_paths = config["Test"]["dataset_segmentations"] if phase == "test" else config["Data"]["dataset_segmentations"]
+            seg_paths = get_custom_file_paths(*seg_paths)
             seg_paths = array(seg_paths)[indices].tolist()
         
         if config["Data"]["dataset_labels"] != '':
@@ -241,7 +270,8 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
             train_files = [{"image": img, "path": img} for img in image_paths]
     elif task == Task.AREA_SEGMENTATION:
         if config["Data"]["use_segmentation"] or config["Data"]["enhance_vessels"]:
-            seg_paths = get_custom_file_paths(* config["Data"]["dataset_segmentations"])
+            seg_paths = config["Test"]["dataset_segmentations"] if phase == "test" else config["Data"]["dataset_segmentations"]
+            seg_paths = get_custom_file_paths(*seg_paths)
             seg_paths = array(seg_paths)[indices].tolist()
         
         placeholder_path = os.path.join("/".join(config[phase.capitalize()]["dataset_path"].split('/')[:-1]),'placeholder.png')

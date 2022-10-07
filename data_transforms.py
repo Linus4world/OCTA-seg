@@ -9,6 +9,23 @@ from PIL import Image
 from monai.networks.nets import DynUNet
 from utils.metrics import Task
 
+class RandomDecreaseResolutiond(MapTransform):
+    def __init__(self, keys: tuple[str], p=1, max_factor=0.25) -> None:
+        super().__init__(keys, True)
+        self.max_factor = max_factor
+        self.p = p
+
+    def __call__(self, data):
+        if random.uniform(0,1)<self.p:
+            for key in self.keys:
+                d = data[key]
+                size = d.shape
+                factor = random.uniform(self.max_factor,1)
+                d = torch.nn.functional.interpolate(d.unsqueeze(0), scale_factor=factor)
+                d = torch.nn.functional.interpolate(d, size=size[1:]).squeeze(0)
+                data[key]=d
+        return data
+
 class AsOneHot():
     def __init__(self, num_classes=3) -> None:
         self.num_classes = num_classes
@@ -330,12 +347,12 @@ class SplitImageLabel(Transform):
     def __call__(self, data: torch.Tensor, keys=["image", "label"]) -> dict[str, torch.Tensor]:
         return {keys[0]: data, keys[1]: torch.clone(data)}
 
-class SplitImageLabeld(Transform):
+class SplitImageLabeld(MapTransform):
     """
     Clones the image tensor to create a label tensr and puts them in a dictionary.
     """
-    def __call__(self, data: dict, keys=["image", "label"]) -> dict[str, torch.Tensor]:
-        data[keys[1]] = torch.clone(data[keys[0]])
+    def __call__(self, data: dict) -> dict[str, torch.Tensor]:
+        data[self.keys[1]] = torch.clone(data[self.keys[0]])
         return data
 
 class ToTensor(Transform):

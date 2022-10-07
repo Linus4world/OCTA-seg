@@ -189,7 +189,7 @@ class Visualizer():
         if self.save_to_tensorboard:
             self.tb.add_graph(model, batch)
 
-    def save_model(self, model: torch.nn.Module, optimizer: torch.optim.Optimizer, epoch: int, prefix: str):
+    def save_model(self, model: torch.nn.Module, optimizer: torch.optim.Optimizer, epoch: int, prefix: str, save_epoch=False):
         torch.save(
             {
                 'epoch': epoch,
@@ -198,6 +198,8 @@ class Visualizer():
             },
             os.path.join(self.save_dir, f"{prefix}_model.pth"),
         )
+        if save_epoch:
+            copyfile(os.path.join(self.save_dir, f"{prefix}_model.pth"), os.path.join(self.save_dir, f"{epoch}_model.pth"))
 
     def save_tune_checkpoint(path: str, d: dict):
         path = os.path.join(path, "checkpoint.pth")
