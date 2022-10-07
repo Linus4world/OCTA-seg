@@ -222,6 +222,45 @@ class Visualizer():
         metric_values = [m[metric_type][metric_name] for m in self.track_record]
         return max(metric_values), np.argmax(metric_values)
 
+    def plot_gan_seg_sample(
+        self,
+        real_A: torch.Tensor,
+        fake_B: torch.Tensor,
+        fake_B_seg: torch.Tensor,
+        real_B: torch.Tensor,
+        idt_B: torch.Tensor,
+        real_B_seg: torch.Tensor,
+        epoch: int,
+        path_A: str,
+        path_B: str,
+        save_epoch=False,
+        full_size=True):
+        
+        images = {
+            "real_A": real_A,
+            "fake_B": fake_B,
+            "fake_B_seg": fake_B_seg,
+            "real_B": real_B,
+            "idt_B": idt_B,
+            "real_B_seg": real_B_seg
+        }
+        images = {k: (v.squeeze().detach().clip(0,1).cpu().numpy() * 255).astype(np.uint8) for k,v in images.items()}
+
+        name_A = path_A.split("/")[-1]
+        name_B = path_B.split("/")[-1]
+
+        inches = get_fig_size(real_A) / (1 if full_size else 2)
+        fig, _ = plt.subplots(2, 3, figsize=(3*inches, 2*inches))
+        plt.title(f"A: {name_A}, B: {name_B}")
+        for i, (title, img) in enumerate(images.items()):
+            fig.axes[i].imshow(img)#, cmap='Greys')
+            fig.axes[i].set_title(title)
+        path = os.path.join(self.save_dir, f'latest.png')
+        plt.savefig(path, bbox_inches='tight')
+        plt.close()
+        if save_epoch:
+            copyfile(path, os.path.join(self.save_dir, f'{epoch}.png'))
+
 def plot_single_image(save_dir:str, input: torch.Tensor, name:str=None):
     Image.fromarray((input.squeeze().detach().cpu().numpy()*255).astype(np.uint8)).save(os.path.join(save_dir, name))
 

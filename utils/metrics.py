@@ -2,7 +2,7 @@
 from typing import Union
 import numpy as np
 import torch
-from monai.metrics import MeanIoU, ROCAUCMetric
+from monai.metrics import MeanIoU, ROCAUCMetric, MSEMetric
 from utils.cl_dice_loss import clDiceLoss
 from monai.losses import DiceLoss
 
@@ -12,6 +12,7 @@ class Task:
     AREA_SEGMENTATION = "area-seg"
     IMAGE_QUALITY_CLASSIFICATION = "img-qual-clf"
     RETINOPATHY_CLASSIFICATION = "ret-clf"
+    GAN_VESSEL_SEGMENTATION = "gan-ves-seg"
 
 def confusion_matrix(rater_a, rater_b, min_rating=None, max_rating=None):
     assert(len(rater_a) == len(rater_b))
@@ -126,7 +127,7 @@ class MacroDiceMetric:
 
 class MetricsManager():
     def __init__(self, task: Task):
-        if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
+        if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION or task == Task.GAN_VESSEL_SEGMENTATION:
             self.metrics = {
                 "DSC": MacroDiceMetric(),
                 "IoU": MeanIoU(include_background=True, reduction="mean")
@@ -226,13 +227,32 @@ class WeightedMSELoss():
         weighted_loss = loss_per_sample*sample_weights
         return torch.sum(weighted_loss)/sample_weights.sum()
 
+class LSGANLoss(torch.nn.Module):
+    def __init__(self, target_real_label=1.0, target_fake_label=0.0) -> None:
+        super().__init__()
+        self.register_buffer('real_label', torch.tensor(target_real_label))
+        self.register_buffer('fake_label', torch.tensor(target_fake_label))
+        self.loss = torch.nn.MSELoss()
+
+    def get_target_tensor(self, prediction, target_is_real):
+        if target_is_real:
+            target_tensor = self.real_label
+        else:
+            target_tensor = self.fake_label
+        return target_tensor.expand_as(prediction)
+
+    def __call__(self, prediction, target_is_real):
+        target_tensor = self.get_target_tensor(prediction, target_is_real)
+        loss = self.loss(prediction, target_tensor)
+        return loss.mean()
 
 
-def get_loss_function(task: Task, config: dict) -> tuple[str, Union[clDiceLoss, SigmoidDiceBCELoss, torch.nn.CrossEntropyLoss]]:
+
+def get_loss_function(task: Task, config: dict) -> tuple[str, Union[clDiceLoss, DiceBCELoss, torch.nn.CrossEntropyLoss]]:
     if task == Task.VESSEL_SEGMENTATION:
         return 'clDiceLoss', clDiceLoss(alpha=config["Train"]["lambda_cl_dice"], sigmoid=True)
     elif task == Task.AREA_SEGMENTATION:
-        return 'DiceBCELoss', SigmoidDiceBCELoss()
+        return 'DiceBCELoss', DiceBCELoss()
     else:
         # return 'CrossEntropyLoss', torch.nn.CrossEntropyLoss(weights=torch.tensor([1/0.537,1/0.349,1/0.115]))
         return "CosineEmbeddingLoss", WeightedCosineLoss(weights=[1/0.537,1/0.349,1/0.115])
@@ -246,5 +266,6 @@ def get_loss_function_by_name(name: str, config: dict) -> Union[clDiceLoss, Dice
         "MSELoss": torch.nn.MSELoss(),
         "WeightedMSELoss": WeightedMSELoss(weights=1/torch.tensor(config["Data"]["class_balance"])),
         "QWKLoss": QWKLoss(),
+        "LSGANLoss": LSGANLoss().to(device=config["General"]["device"])
     }
     return loss_map[name]
