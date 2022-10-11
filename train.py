@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from image_dataset import get_dataset, get_post_transformation
 from utils.metrics import MetricsManager, Task, get_loss_function_by_name
-from utils.visualizer import Visualizer
+from utils.visualizer import Visualizer, plot_sample
 
 # Parse input arguments
 parser = argparse.ArgumentParser(description='')
@@ -46,6 +46,8 @@ visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT=USE_SEG_INPUT)
 
 train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')
+test_loader = get_dataset(config, 'test')
+test_loader_iter = iter(test_loader)
 post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
 model, optimizer = initialize_model(config, args)
@@ -148,9 +150,20 @@ for epoch in epoch_tqdm:
             visualizer.plot_losses_and_metrics(epoch_metrics, epoch)
             if epoch%config["Output"]["save_interval"] == 0:
                 if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
-                    visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], suffix= None if best_metric>metric_comp else 'best')
+                    visualizer.plot_sample(val_inputs[0], val_outputs[0], val_labels[0], suffix='val')
                 else:
                     visualizer.plot_clf_sample(val_inputs, val_outputs, val_labels, val_data["path"], suffix= None if best_metric>metric_comp else 'best')
+
+            if task == Task.VESSEL_SEGMENTATION:
+                try:
+                    test_data = next(test_loader_iter)
+                except StopIteration:
+                    test_loader_iter = iter(test_loader)
+                    test_data = next(test_loader_iter)
+                val_inputs = test_data["image"].to(device).float()
+                val_outputs = model(val_inputs)
+                val_outputs = [post_pred(i).cpu() for i in decollate_batch(val_outputs)]
+                plot_sample(visualizer.save_dir, val_inputs[0], val_outputs[0], None, test_data["path"][0], suffix="test", full_size=True)
     visualizer.log_model_params(model, epoch)
 
 total_time = time.time() - total_start

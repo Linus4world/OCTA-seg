@@ -1,10 +1,12 @@
+from typing import Union
 import torch
+from models.gan_seg_model import GanSegModel
 from utils.metrics import Task
 
 from models.networks import MODEL_DICT, init_weights
 
 
-def initialize_model(config: dict, args, load_best=False):
+def initialize_model(config: dict, args, load_best=False) -> tuple[torch.nn.Module, Union[torch.optim.Optimizer, tuple[torch.optim.Optimizer]]]:
     # Model
     num_layers = config["General"]["num_layers"]
     kernel_size = config["General"]["kernel_size"]
@@ -46,12 +48,49 @@ def initialize_model(config: dict, args, load_best=False):
                 pretrained_dict = {k: v for k, v in checkpoint.items() if
                                     (k in model.state_dict().keys()) and (model.state_dict()[k].shape == checkpoint[k].shape)}
             model.load_state_dict(pretrained_dict, strict=False)
-    else:
+    elif task == Task.IMAGE_QUALITY_CLASSIFICATION or task == Task.RETINOPATHY_CLASSIFICATION:
         if config["Data"]["enhance_vessels"]:
             input_channels=1
         else:
             input_channels=sum([True, config["Data"]["use_segmentation"], config["Data"]["use_background"]])
         model = MODEL_DICT[model_name](num_classes=num_classes, input_channels=input_channels).to(device)
+    elif task == Task.GAN_VESSEL_SEGMENTATION:
+        model = GanSegModel(
+            generator=MODEL_DICT[config["General"]["model_g"]]().to(device),
+            discriminator=MODEL_DICT[config["General"]["model_d"]]().to(device),
+            segmentor=MODEL_DICT[config["General"]["model_s"]](
+                spatial_dims=2,
+                in_channels=1,
+                out_channels=1,
+                kernel_size=(3, *[kernel_size]*num_layers,3),
+                strides=(1,*[2]*num_layers,1),
+                upsample_kernel_size=(1,*[2]*num_layers,1)
+            ).to(device),
+            compute_identity = config["Train"]["compute_identity"],
+            compute_identity_seg=config["Train"]["compute_identity_seg"]
+        )
+        for m, m_name in zip([model.generator, model.discriminator, model.segmentor], [config["General"]["model_g"], config["General"]["model_d"], config["General"]["model_s"]]):
+            activation = 'relu' if m_name.lower().startswith("resnet") else 'leaky_relu'
+            init_weights(m, init_type='kaiming', nonlinearity=activation)
+        optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=config["Train"]["lr"], betas=(0.5 , 0.999))
+        optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=config["Train"]["lr"], betas=(0.5 , 0.999))
+        optimizer_S = torch.optim.Adam(model.segmentor.parameters(), lr=config["Train"]["lr"])
+        if hasattr(args, "start_epoch") and args.start_epoch>0:
+            checkpoint_G = torch.load(model_path.replace('best_model', 'latest_G_model'))
+            model.generator.load_state_dict(checkpoint_G['model'])
+            optimizer_G.load_state_dict(checkpoint_G['optimizer'])
+
+            checkpoint_D = torch.load(model_path.replace('best_model', 'latest_D_model'))
+            model.discriminator.load_state_dict(checkpoint_D['model'])
+            optimizer_D.load_state_dict(checkpoint_D['optimizer'])
+
+            checkpoint_S = torch.load(model_path.replace('best_model', 'latest_S_model'))
+            model.segmentor.load_state_dict(checkpoint_S['model'])
+            optimizer_S.load_state_dict(checkpoint_S['optimizer'])
+
+        return model, (optimizer_G,optimizer_D,optimizer_S)
+    else:
+        raise NotImplementedError
 
     if hasattr(args, "start_epoch") and args.start_epoch>0:
         checkpoint = torch.load(model_path.replace('best_model', 'latest_model'))
@@ -65,7 +104,7 @@ def initialize_model(config: dict, args, load_best=False):
         optimizer=None
         print("Loaded checkpoint from epoch", checkpoint['epoch'])
     else:
-        activation = 'relu' if model_name.startswith("resnet") else 'leaky_relu'
+        activation = 'relu' if model_name.lower().startswith("resnet") else 'leaky_relu'
         init_weights(model, init_type='kaiming', nonlinearity=activation)
         optimizer = torch.optim.Adam(model.parameters(), config["Train"]["lr"], weight_decay=1e-6)
     return model, optimizer

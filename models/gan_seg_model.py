@@ -25,35 +25,37 @@ class GanSegModel(nn.Module):
         if not isinstance(input, tuple):
             input = input, _
         real_A, real_B = input
-        fake_B, pred_fake_B, pred_real_B = self.forward_GD(input)
-        pred_fake_B, fake_B_seg, idt_B, real_B_seg, idt_B_seg = self.forward_GS(real_B, fake_B)
+        fake_B, idt_B, pred_fake_B, pred_real_B = self.forward_GD(input)
+        pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg = self.forward_GS(real_B, fake_B, idt_B)
         return fake_B, pred_fake_B, pred_real_B, pred_fake_B, fake_B_seg, idt_B, real_B_seg, idt_B_seg
 
 
     def forward_GD(self, input: tuple[torch.Tensor]) -> tuple[torch.Tensor]:
         real_A, real_B = input
         fake_B = self.generator(real_A)
-        
-        pred_fake_B = self.discriminator(fake_B.detach())
-        pred_real_B = self.discriminator(real_B)
-        return fake_B, pred_fake_B, pred_real_B
-
-    def forward_GS(self, real_B, fake_B) -> tuple[torch.Tensor]:
-        """Calculate GAN and NCE loss for the generator"""
-        # First, G(A) should fake the discriminator
-        real_B_seg = self.segmentor(real_B)
         if self.compute_identity_seg:
             idt_B = self.generator(real_B)
+        
+        self.discriminator.requires_grad_(True)
+        pred_fake_B = self.discriminator(fake_B.detach())
+        pred_real_B = self.discriminator(real_B)
+        return fake_B, idt_B, pred_fake_B, pred_real_B
+
+    def forward_GS(self, real_B, fake_B, idt_B) -> tuple[torch.Tensor]:
+        """Calculate GAN and NCE loss for the generator"""
+        # First, G(A) should fake the discriminator
+        self.discriminator.requires_grad_(False)
+        pred_fake_B = self.discriminator(fake_B)
+
+        real_B_seg = self.segmentor(real_B)
+        if self.compute_identity_seg:
             idt_B_seg = self.segmentor(idt_B)
         else:
             idt_B = None
             real_B_seg = None
             idt_B_seg = None
         fake_B_seg = self.segmentor(fake_B)
-        self.discriminator.requires_grad_(False)
-        pred_fake_B = self.discriminator(fake_B)
-        self.discriminator.requires_grad_(True)
-        return pred_fake_B, fake_B_seg, idt_B, real_B_seg, idt_B_seg
+        return pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg
 
     def apply(self, init_func):
         self.generator.apply(init_func)

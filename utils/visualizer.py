@@ -11,6 +11,7 @@ import nibabel as nib
 import json
 import math
 from PIL import Image
+from utils.metrics import Task
 
 from utils.voreen_vesselgraphextraction import extract_vessel_graph
 
@@ -43,8 +44,12 @@ class Visualizer():
                 reader = csv.DictReader(csvfile)
                 for row in reader:
                     d = dict()
-                    d["loss"] = {k: float(v) for k,v in list(row.items())[1:3]}
-                    d["metric"] = {k: float(v) for k,v in list(row.items())[3:]}
+                    if config["General"]["task"] == Task.GAN_VESSEL_SEGMENTATION:
+                        d["loss"] = {k: float(v) for k,v in list(row.items())[1:-2]}
+                        d["metric"] = {k: float(v) for k,v in list(row.items())[-2:]}
+                    else:
+                        d["loss"] = {k: float(v) for k,v in list(row.items())[1:3]}
+                        d["metric"] = {k: float(v) for k,v in list(row.items())[3:]}
                     self.track_record.append(d)
                     self.epochs.append(int(row["epoch"]))
             if self.save_to_tensorboard:
@@ -85,12 +90,26 @@ class Visualizer():
         copyfile(old_log_file_path,self.log_file_path)
 
     def _copy_best_checkpoint(self, old_dir, new_dir):
-        old_best_checkpoint = os.path.join(old_dir, 'best_model.pth')
-        new_best_checkpoint = os.path.join(new_dir, 'best_model.pth')
-        copyfile(old_best_checkpoint,new_best_checkpoint)
-        old_latest_checkpoint = os.path.join(old_dir, 'latest_model.pth')
-        new_latest_checkpoint = os.path.join(new_dir, 'latest_model.pth')
-        copyfile(old_latest_checkpoint,new_latest_checkpoint)
+        if self.config["General"]["task"] == Task.GAN_VESSEL_SEGMENTATION:
+            old_checkpoint = os.path.join(old_dir, 'latest_G_model.pth')
+            new_checkpoint = os.path.join(new_dir, 'latest_G_model.pth')
+            copyfile(old_checkpoint,new_checkpoint)
+
+            old_checkpoint = os.path.join(old_dir, 'latest_D_model.pth')
+            new_checkpoint = os.path.join(new_dir, 'latest_D_model.pth')
+            copyfile(old_checkpoint,new_checkpoint)
+            
+            old_checkpoint = os.path.join(old_dir, 'latest_S_model.pth')
+            new_checkpoint = os.path.join(new_dir, 'latest_S_model.pth')
+            copyfile(old_checkpoint,new_checkpoint)
+
+        else:
+            old_best_checkpoint = os.path.join(old_dir, 'best_model.pth')
+            new_best_checkpoint = os.path.join(new_dir, 'best_model.pth')
+            copyfile(old_best_checkpoint,new_best_checkpoint)
+            old_latest_checkpoint = os.path.join(old_dir, 'latest_model.pth')
+            new_latest_checkpoint = os.path.join(new_dir, 'latest_model.pth')
+            copyfile(old_latest_checkpoint,new_latest_checkpoint)
 
     def plot_losses_and_metrics(self, metric_groups: dict[str, dict[str, float]], epoch: int):
         """
@@ -199,7 +218,7 @@ class Visualizer():
             os.path.join(self.save_dir, f"{prefix}_model.pth"),
         )
         if save_epoch:
-            copyfile(os.path.join(self.save_dir, f"{prefix}_model.pth"), os.path.join(self.save_dir, f"{epoch}_model.pth"))
+            copyfile(os.path.join(self.save_dir, f"{prefix}_model.pth"), os.path.join(self.save_dir, f"{epoch}_{prefix}_model.pth"))
 
     def save_tune_checkpoint(path: str, d: dict):
         path = os.path.join(path, "checkpoint.pth")

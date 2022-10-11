@@ -67,14 +67,6 @@ lr_scheduler_D = torch.optim.lr_scheduler.LambdaLR(optimizer_D, schedule)
 lr_scheduler_S = torch.optim.lr_scheduler.LambdaLR(optimizer_S, schedule)
 metrics = MetricsManager(task)
 
-
-# TRAINING BEGINS HERE
-if args.start_epoch>0:
-    best_metric, best_metric_epoch = visualizer.get_max_of_metric("metric", metrics.get_comp_metric("val"))
-else:
-    best_metric = -1
-    best_metric_epoch = -1
-
 total_start = time.time()
 epoch_tqdm = tqdm(range(args.start_epoch,max_epochs), desc="epoch")
 for epoch in epoch_tqdm:
@@ -97,9 +89,8 @@ for epoch in epoch_tqdm:
         real_B: torch.Tensor = batch_data["real_B"].to(device)
         real_A_seg: torch.Tensor = batch_data["real_A_seg"].to(device)
         optimizer_D.zero_grad()
-        optimizer_G.zero_grad()
         with torch.cuda.amp.autocast():
-            fake_B, pred_fake_B, pred_real_B = model.forward_GD((real_A, real_B))
+            fake_B, idt_B, pred_fake_B, pred_real_B = model.forward_GD((real_A, real_B))
             loss_D_fake = dg_loss(pred_fake_B, False)
             loss_D_real = dg_loss(pred_real_B, True)
             loss_D = 0.5*(loss_D_fake + loss_D_real)
@@ -108,9 +99,10 @@ for epoch in epoch_tqdm:
         scaler.step(optimizer_D)
 
         
+        optimizer_G.zero_grad()
         optimizer_S.zero_grad()
         with torch.cuda.amp.autocast():
-            pred_fake_B, fake_B_seg, idt_B, real_B_seg, idt_B_seg  = model.forward_GS(real_B, fake_B)
+            pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg  = model.forward_GS(real_B, fake_B, idt_B)
             loss_G = dg_loss(pred_fake_B, True)
             if model.compute_identity:
                 loss_G_idt = criterionIdt(real_B, idt_B)
@@ -121,7 +113,7 @@ for epoch in epoch_tqdm:
 
             loss_S = 1 * s_loss(fake_B_seg, real_A_seg)
             if model.compute_identity_seg:
-                loss_S_idt = s_loss(idt_B_seg, real_B_seg)
+                loss_S_idt = criterionIdt(torch.sigmoid(idt_B_seg), torch.sigmoid(real_B_seg))
             else:
                 loss_S_idt = 0
             loss_SS = loss_S + loss_S_idt
@@ -178,4 +170,4 @@ for epoch in epoch_tqdm:
 
 total_time = time.time() - total_start
 
-print(f"Finished training after {str(datetime.timedelta(seconds=total_time))}. Best metric: {best_metric} at epoch: {best_metric_epoch}")
+print(f"Finished training after {str(datetime.timedelta(seconds=total_time))}.")

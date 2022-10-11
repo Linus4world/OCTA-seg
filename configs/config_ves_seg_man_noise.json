@@ -8,8 +8,9 @@
         "model": "DynUNet"
     },
     "Data": {
-        "dataset_images": ["/home/lkreitner/OCTA-CUT/results/OCTA_3x3_31-09-22/test_100/images/fake_B/", "z.png"],
-        "dataset_labels": ["/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA", "z.png"],
+        "dataset_images": ["/home/lkreitner/arterial-tree-generation/dataset_25_09_22/", "gray_z.png"],
+        "noise_map_path": "/home/lkreitner/arterial-tree-generation/geometries/slab_noise_22_07_22.npy",
+        "real_noise_path": "/home/lkreitner/arterial-tree-generation/dataset_deep_02_08_22",
         "num_classes": 1,
         "class_balance": [1]
     },
@@ -31,7 +32,7 @@
         "batch_size": 1,
         "dataset_images": ["/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainB", ".bmp"],
         "dataset_path": "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/train.txt",
-        "num_samples": 10,
+        "num_samples": 5,
         "save_images": false
     },
     "Output": {

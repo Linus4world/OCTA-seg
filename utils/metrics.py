@@ -162,7 +162,7 @@ class DiceBCELoss():
         self.dice = DiceLoss(sigmoid=sigmoid)
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
-        return (self.dice(y_pred, y) + self.bce(y_pred, y.float()))/2
+        return (self.dice(y_pred, y) + self.bce(y_pred, y))/2
 
 class WeightedCosineLoss():
     def __init__(self, weights=[1,1,1]) -> None:
@@ -260,7 +260,7 @@ def get_loss_function(task: Task, config: dict) -> tuple[str, Union[clDiceLoss, 
 def get_loss_function_by_name(name: str, config: dict) -> Union[clDiceLoss, DiceBCELoss, torch.nn.CrossEntropyLoss, WeightedCosineLoss]:
     loss_map = {
         "clDiceLoss": clDiceLoss(alpha=config["Train"]["lambda_cl_dice"]),
-        "DiceBCELoss": DiceBCELoss(),
+        "DiceBCELoss": DiceBCELoss(True),
         "CrossEntropyLoss": torch.nn.CrossEntropyLoss(weight=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),
         "CosineEmbeddingLoss": WeightedCosineLoss(weights=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),
         "MSELoss": torch.nn.MSELoss(),

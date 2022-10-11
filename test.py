@@ -32,10 +32,8 @@ set_determinism(seed=0)
 task: Task = config["General"]["task"]
 
 test_loader = get_dataset(config, 'test')
-post_trans, _ = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
+post_pred, _ = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
-VAL_AMP = config["General"]["amp"]
-# use amp to accelerate training
 device = torch.device(config["General"]["device"])
 
 model, optimizer = initialize_model(config, args, load_best=True)
@@ -50,7 +48,7 @@ with torch.no_grad():
         num_sample+=1
         val_inputs = test_data["image"].to(device).float()
         val_outputs = model(val_inputs)
-        val_outputs = [post_trans(i).cpu() for i in decollate_batch(val_outputs)]
+        val_outputs = [post_pred(i).cpu() for i in decollate_batch(val_outputs)]
 
         if task == Task.VESSEL_SEGMENTATION:
             # clean_seg = extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)

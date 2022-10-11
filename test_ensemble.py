@@ -15,11 +15,11 @@ from utils.metrics import Task
 from utils.visualizer import save_prediction_csv, plot_single_image
 
 config_files = [
-    "/home/lkreitner/OCTA-seg/results/area-seg/cross_val/20220924_105045/config.json",
-    "/home/lkreitner/OCTA-seg/results/area-seg/cross_val/20220924_105106/config.json",
-    "/home/lkreitner/OCTA-seg/results/area-seg/cross_val/20220924_105113/config.json",
-    "/home/lkreitner/OCTA-seg/results/area-seg/cross_val/20220924_222456/config.json",
-    "/home/lkreitner/OCTA-seg/results/area-seg/cross_val/20220924_222513/config.json"
+    "/home/lkreitner/OCTA-seg/results/area-seg/cross_val/pre_ves_seg/20220922_122224/config.json",
+    "/home/lkreitner/OCTA-seg/results/area-seg/cross_val/pre_ves_seg/20220922_122356/config.json",
+    "/home/lkreitner/OCTA-seg/results/area-seg/cross_val/pre_ves_seg/20220922_122427/config.json",
+    "/home/lkreitner/OCTA-seg/results/area-seg/cross_val/pre_ves_seg/20220922_232631/config.json",
+    "/home/lkreitner/OCTA-seg/results/area-seg/cross_val/pre_ves_seg/20220923_173815/config.json"
 ]
 
 predictions = dict()

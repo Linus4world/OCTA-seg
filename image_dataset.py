@@ -81,7 +81,7 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 RandFlipd(keys=["real_A", "real_B"], prob=0.5, spatial_axis=[0,1]),
                 # Rand2DElasticd(keys=["real_A", "real_B"], prob=.5, spacing=(40,40), magnitude_range=(1,4), padding_mode='zeros'),
                 RandRotate90d(keys=["real_A", "real_B"], prob=.75),
-                # RandRotated(keys=["real_A", "real_B"], prob=0.75, range_x=deg2rad(10), padding_mode="zeros"),
+                RandRotated(keys=["real_A", "real_B"], prob=1, range_x=deg2rad(10), padding_mode="zeros"),
                 Resized(keys=["real_B"], shape=(1216,1216)),
                 RandCropOrPadd(keys=["real_A", "real_B"], prob=1, min_factor=0.25, max_factor=0.25),
                 ScaleIntensityd(keys=["real_A", "real_B"], minv=0, maxv=1),
@@ -242,14 +242,19 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
     image_paths = array(image_paths)[indices].tolist()
 
     if task == Task.VESSEL_SEGMENTATION:
-        train_files = [{"image": path, "path": path} for path in image_paths]
+        if phase != "test" and "dataset_labels" in config["Data"]:
+            label_paths = get_custom_file_paths(*config["Data"]["dataset_labels"])
+            label_paths = array(label_paths)[indices].tolist()
+            train_files = [{"image": path, "label":l_path, "path": path} for path, l_path in zip(image_paths, label_paths)]
+        else:
+            train_files = [{"image": path, "path": path} for path in image_paths]
     elif task == Task.GAN_VESSEL_SEGMENTATION:
         if phase != "test":
             A_paths = get_custom_file_paths(*config["Data"]["synthetic_images"])
         else:
             A_paths = None
         data_set = UnalignedZipDataset(A_paths, image_paths, transform)
-        loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=4, pin_memory=torch.cuda.is_available())
+        loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
         return loader
     elif task == Task.RETINOPATHY_CLASSIFICATION or task == Task.IMAGE_QUALITY_CLASSIFICATION:
         if config["Data"]["use_segmentation"] or config["Data"]["enhance_vessels"]:
@@ -296,5 +301,5 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
 
 
     data_set = Dataset(train_files, transform=transform)
-    loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=4, pin_memory=torch.cuda.is_available())
+    loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
     return loader
