@@ -27,7 +27,74 @@
         "loss_s": "DiceBCELoss",
         "lambda_cl_dice": 0,
         "compute_identity": false,
-        "compute_identity_seg": true
+        "compute_identity_seg": true,
+        "data_augmentation": [
+            {
+                "name": "LoadImaged",
+                "keys": ["real_A", "real_B"],
+                "image_only": true
+            },
+            {
+                "name": "ScaleIntensityd",
+                "keys": ["real_A", "real_B"], 
+                "minv": 0,
+                "maxv": 1
+            },
+            {
+                "name": "AddChanneld",
+                "keys": ["real_A", "real_B"]
+            },
+            {
+                "name": "RandFlipd",
+                "keys": ["real_A", "real_B"],
+                "prob": 0.5,
+                "spatial_axis": [0,1]
+            },
+            {
+                "name": "RandRotate90d",
+                "keys": ["real_A", "real_B"],
+                "prob": 0.75
+            },
+            {
+                "name": "Resized",
+                "keys": ["real_B"],
+                "shape": [1216,1216]
+            },
+            {
+                "name": "RandRotated",
+                "keys": ["real_A", "real_B"],
+                "prob": 1,
+                "range_x": 0.17453292519943295,
+                "padding_mode": "zeros"
+            },
+            {
+                "name": "RandCropOrPadd",
+                "keys": ["real_A", "real_B"],
+                "prob": 1,
+                "min_factor": 0.25,
+                "max_factor": 0.25
+            },
+            {
+                "name": "ScaleIntensityd",
+                "keys": ["real_A", "real_B"],
+                "minv": 0,
+                "maxv": 1
+            },
+            {
+                "name": "SplitImageLabeld",
+                "keys": ["real_A", "real_A_seg"]
+            },
+            {
+                "name": "AsDiscreted",
+                "keys": ["real_A_seg"],
+                "threshold": 0.1
+            },
+            {
+                "name": "CastToTyped",
+                "keys": ["real_A", "real_A_seg", "real_B"],
+                "dtype": "dtype"
+            }
+        ]
     },
     "Validation": {
         "batch_size": 4,

@@ -21,18 +21,152 @@
         "batch_size": 4,
         "lr":1e-4,
         "loss": "DiceBCELoss",
-        "lambda_cl_dice": 0
+        "data_augmentation": [
+            {
+                "name": "LoadImaged",
+                "keys": ["image", "label"],
+                "image_only": true
+            },
+            {
+                "name": "ScaleIntensityd",
+                "keys": ["image", "label"], 
+                "minv": 0,
+                "maxv": 1
+            },
+            {
+                "name": "AddChanneld",
+                "keys": ["image", "label"]
+            },
+            {
+                "name": "Resized",
+                "keys": ["image"],
+                "shape": [1216,1216]
+            },
+            {
+                "name": "RandFlipd",
+                "keys": ["image", "label"],
+                "prob": 0.5,
+                "spatial_axis": [0,1]
+            },
+            {
+                "name": "RandRotate90d",
+                "keys": ["image", "label"],
+                "prob": 0.75
+            },
+            {
+                "name": "RandRotated",
+                "keys": ["image", "label"],
+                "prob": 1,
+                "range_x": 0.17453292519943295,
+                "padding_mode": "zeros"
+            },
+            {
+                "name": "ScaleIntensityd",
+                "keys": ["image"],
+                "minv": 0,
+                "maxv": 1
+            },
+            {
+                "name": "AsDiscreted",
+                "keys": ["label"],
+                "threshold": 0.1
+            },
+            {
+                "name": "CastToTyped",
+                "keys": ["image", "label"],
+                "dtype": "dtype"
+            }
+        ]
     },
     "Validation": {
         "batch_size": 4,
-        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/val.txt"
+        "dataset_path": "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/val.txt",
+        "data_augmentation": [
+            {
+                "name": "LoadImaged",
+                "keys": ["image", "label"],
+                "image_only": true
+            },
+            {
+                "name": "ScaleIntensityd",
+                "keys": ["image", "label"], 
+                "minv": 0,
+                "maxv": 1
+            },
+            {
+                "name": "AddChanneld",
+                "keys": ["image", "label"]
+            },
+            {
+                "name": "Resized",
+                "keys": ["image"],
+                "shape": [1216,1216]
+            },
+            {
+                "name": "Rotate90d",
+                "keys": ["image", "label"],
+                "k": 1
+            },
+            {
+                "name": "Flipd",
+                "keys": ["image", "label"],
+                "spatial_axis": 0
+            },
+            {
+                "name": "AsDiscreted",
+                "keys": ["label"],
+                "threshold": 0.1
+            },
+            {
+                "name": "CastToTyped",
+                "keys": ["image", "label"],
+                "dtype": "dtype"
+            }
+        ]
     },
     "Test": {
         "batch_size": 1,
         "dataset_images": ["/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainB", ".bmp"],
         "dataset_path": "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/train.txt",
         "num_samples": 10,
-        "save_images": false
+        "save_images": false,
+        "data_augmentation": [
+            {
+                "name": "LoadImaged",
+                "keys": ["image"],
+                "image_only": true
+            },
+            {
+                "name": "ScaleIntensityd",
+                "keys": ["image"], 
+                "minv": 0,
+                "maxv": 1
+            },
+            {
+                "name": "AddChanneld",
+                "keys": ["image"]
+            },
+            {
+                "name": "Resized",
+                "keys": ["image"],
+                "shape": [1216,1216]
+            },
+            {
+                "name": "Rotate90d",
+                "keys": ["image"],
+                "k": 1
+            },
+            {
+                "name": "Flipd",
+                "keys": ["image"],
+                "spatial_axis": 0
+            },
+            {
+                "name": "CastToTyped",
+                "keys": ["image"],
+                "dtype": "dtype"
+            }
+        ]
     },
     "Output": {
         "save_dir": "/home/lkreitner/OCTA-seg/results/ves-seg",

@@ -259,7 +259,7 @@ def get_loss_function(task: Task, config: dict) -> tuple[str, Union[clDiceLoss, 
 
 def get_loss_function_by_name(name: str, config: dict) -> Union[clDiceLoss, DiceBCELoss, torch.nn.CrossEntropyLoss, WeightedCosineLoss]:
     loss_map = {
-        "clDiceLoss": clDiceLoss(alpha=config["Train"]["lambda_cl_dice"]),
+        "clDiceLoss": clDiceLoss(alpha=config["Train"]["lambda_cl_dice"] if "lambda_cl_dice" in config["Train"] else 0),
         "DiceBCELoss": DiceBCELoss(True),
         "CrossEntropyLoss": torch.nn.CrossEntropyLoss(weight=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),
         "CosineEmbeddingLoss": WeightedCosineLoss(weights=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),

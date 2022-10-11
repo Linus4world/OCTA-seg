@@ -1,5 +1,4 @@
 from monai.data import DataLoader, Dataset
-from monai.transforms import *
 from data_transforms import *
 import os
 from numpy import array, deg2rad
@@ -26,69 +25,9 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
     """
     Create and return the data transformations for 2D segmentation images the given phase.
     """
-    if task == Task.VESSEL_SEGMENTATION:
-        if phase == "train":
-            return Compose([
-                LoadImaged(keys=["image"], image_only=True),
-                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
-                AddChanneld(keys=["image"]),
-                Rotate90d(keys=["image"], k=1),
-                Flipd(keys=["image"], spatial_axis=0),
-                SplitImageLabeld(keys=["image", "label"]),
-                AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
-                RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=[0,1]),
-                RandCropOrPadd(keys=["image", "label"], prob=0.5, min_factor=0.8, max_factor=1.2),
-                RandRotate90d(keys=["image", "label"], prob=.75),
-                RandRotated(keys=["image", "label"], range_x=deg2rad(10)),
-                Rand2DElasticd(keys=["image", "label"], prob=.5, spacing=(20,20), magnitude_range=(2,4), padding_mode='zeros'),
-                Resized(keys=["image", "label"], shape=(304,304)),
-                # Resized(keys=["image", "label"], shape=(1024,1024)),
-                # RandAdjustContrastd(keys=["image"], prob=0.5, gamma=(0.5,2)),
-                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
-                AddLineArtifact(keys=["image"]),
-                AsDiscreted(keys=["label"], threshold=0.001),
-                CastToTyped(keys=["image", "label"], dtype=dtype)
-            ])
-        elif phase == "validation":
-            return Compose([
-                LoadImaged(keys=["image"], image_only=True),
-                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
-                AddChanneld(keys=["image"]),
-                Rotate90d(keys=["image"], k=1),
-                Flipd(keys=["image"], spatial_axis=0),
-                SplitImageLabeld(keys=["image", "label"]),
-                AddRealNoised(keys=["image"], noise_paths=get_custom_file_paths(config["Data"]["real_noise_path"], "art_ven_gray_z.png"), noise_layer_path=config["Data"]["noise_map_path"]),
-                Resized(keys=["image", "label"], shape=(304,304)),
-                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
-                AsDiscreted(keys=["label"],threshold=0.001),
-                CastToTyped(keys=["image", "label"], dtype=dtype)
-            ])
-        else:
-            return Compose([
-                LoadImaged(keys=["image"], image_only=True),
-                ScaleIntensityd(keys=["image"], minv=0, maxv=1),
-                AddChanneld(keys=["image"]),
-                Rotate90d(keys=["image"], k=1),
-                Flipd(keys=["image"], spatial_axis=0),
-                CastToTyped(keys=["image"], dtype=dtype)
-            ])
-    elif task == Task.GAN_VESSEL_SEGMENTATION:
-        if phase == "train":
-            return Compose([
-                LoadImaged(keys=["real_A", "real_B"], image_only=True),
-                ScaleIntensityd(keys=["real_A", "real_B"], minv=0, maxv=1),
-                AddChanneld(keys=["real_A", "real_B"]),
-                RandFlipd(keys=["real_A", "real_B"], prob=0.5, spatial_axis=[0,1]),
-                # Rand2DElasticd(keys=["real_A", "real_B"], prob=.5, spacing=(40,40), magnitude_range=(1,4), padding_mode='zeros'),
-                RandRotate90d(keys=["real_A", "real_B"], prob=.75),
-                RandRotated(keys=["real_A", "real_B"], prob=1, range_x=deg2rad(10), padding_mode="zeros"),
-                Resized(keys=["real_B"], shape=(1216,1216)),
-                RandCropOrPadd(keys=["real_A", "real_B"], prob=1, min_factor=0.25, max_factor=0.25),
-                ScaleIntensityd(keys=["real_A", "real_B"], minv=0, maxv=1),
-                SplitImageLabeld(keys=["real_A", "real_A_seg"]),
-                AsDiscreted(keys=["real_A_seg"],threshold=0.1),
-                CastToTyped(keys=["real_A", "real_A_seg", "real_B"], dtype=dtype)
-            ])
+    if task == Task.VESSEL_SEGMENTATION or task == Task.GAN_VESSEL_SEGMENTATION:
+        aug_config = config[phase.capitalize()]["data_augmentation"]
+        return Compose(get_data_augmentations(aug_config, dtype))
     elif task == Task.RETINOPATHY_CLASSIFICATION:
         if phase == "train":
             return Compose([
