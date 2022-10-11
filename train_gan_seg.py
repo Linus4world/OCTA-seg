@@ -8,6 +8,7 @@ from random import randint
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
 from monai.utils import set_determinism
+import yaml
 from models.gan_seg_model import GanSegModel
 from models.model import initialize_model
 import time
@@ -24,9 +25,12 @@ parser.add_argument("--start_epoch", type=int, default=0)
 args = parser.parse_args()
 
 # Read config file
-path = os.path.abspath(args.config_file)
-with open(path) as filepath:
-    config = json.load(filepath)
+path: str = os.path.abspath(args.config_file)
+with open(path, "r") as stream:
+    if path.endswith(".json"):
+        config = json.load(stream)
+    else:
+        config = yaml.safe_load(stream)
 
 if "seed" not in config["General"]:
     config["General"]["seed"] = randint(0,1e6)

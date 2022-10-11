@@ -12,6 +12,7 @@ import torch
 
 from monai.data import decollate_batch
 from monai.utils import set_determinism
+import yaml
 from models.model import initialize_model
 
 from image_dataset import get_dataset, get_post_transformation
@@ -28,9 +29,12 @@ parser.add_argument('--resume', action="store_true")
 args = parser.parse_args()
 
 # Read config file
-path = os.path.abspath(args.config_file)
-with open(path) as filepath:
-    CONFIG = json.load(filepath)
+path: str = os.path.abspath(args.config_file)
+with open(path, "r") as stream:
+    if path.endswith(".json"):
+        CONFIG = json.load(stream)
+    else:
+        CONFIG = yaml.safe_load(stream)
 
 
 def model_2_str(model):

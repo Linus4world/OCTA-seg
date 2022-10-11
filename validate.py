@@ -6,6 +6,7 @@ from tqdm import tqdm
 import numpy as np
 
 from monai.data import decollate_batch
+import yaml
 from models.model import initialize_model
 
 from image_dataset import get_dataset, get_post_transformation
@@ -17,9 +18,12 @@ parser.add_argument('--config_file', type=str, required=True)
 args = parser.parse_args()
 
 # Read config file
-path = os.path.abspath(args.config_file)
-with open(path) as filepath:
-    config = json.load(filepath)
+path: str = os.path.abspath(args.config_file)
+with open(path, "r") as stream:
+    if path.endswith(".json"):
+        config = json.load(stream)
+    else:
+        config = yaml.safe_load(stream)
 
 config["Validation"]["batch_size"]=1
 

@@ -1,0 +1,218 @@
+---
+General:
+  amp: true
+  device: cuda:0
+  num_layers: 3
+  kernel_size: 3
+  task: ves-seg
+  model: DynUNet
+Data:
+  dataset_images:
+  - "/home/lkreitner/arterial-tree-generation/dataset_25_09_22/"
+  - gray_z.png
+  noise_map_path: "/home/lkreitner/arterial-tree-generation/geometries/slab_noise_22_07_22.npy"
+  real_noise_path: "/home/lkreitner/arterial-tree-generation/dataset_deep_02_08_22"
+  num_classes: 1
+  class_balance:
+  - 1
+Train:
+  dataset_path: "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train.txt"
+  epochs: 60
+  epochs_decay: 0
+  val_interval: 1
+  batch_size: 4
+  lr: 0.0001
+  loss: DiceBCELoss
+  lambda_cl_dice: 0
+  data_augmentation:
+  - name: LoadImaged
+    keys:
+    - image
+    - label
+    image_only: true
+  - name: ScaleIntensityd
+    keys:
+    - image
+    - label
+    minv: 0
+    maxv: 1
+  - name: AddChanneld
+    keys:
+    - image
+    - label
+  - name: Rotate90d
+    keys:
+    - image
+    - label
+    k: 1
+  - name: Flipd
+    keys:
+    - image
+    - label
+    spatial_axis: 0
+  - name: SplitImageLabeld
+    keys:
+    - image
+    - label
+  - name: AddRealNoised
+    keys:
+    - image
+    noise_paths:
+    - "/home/lkreitner/arterial-tree-generation/dataset_deep_02_08_22"
+    - art_ven_gray_z.png
+    - art_ven_gray_z.png
+    noise_layer_path: "/home/lkreitner/arterial-tree-generation/dataset_deep_02_08_22"
+  - name: Resized
+    keys:
+    - image
+    - label
+    shape:
+    - 304
+    - 304
+  - name: RandFlipd
+    keys:
+    - image
+    - label
+    prob: 0.5
+    spatial_axis:
+    - 0
+    - 1
+  - name: RandRotate90d
+    keys:
+    - image
+    - label
+    prob: 0.75
+  - name: RandRotated
+    keys:
+    - image
+    - label
+    prob: 1
+    range_x: 0.17453292519943295
+    padding_mode: zeros
+  - name: ScaleIntensityd
+    keys:
+    - image
+    minv: 0
+    maxv: 1
+  - name: AddLineArtifact
+    keys:
+    - image
+  - name: AsDiscreted
+    keys:
+    - label
+    threshold: 0.1
+  - name: CastToTyped
+    keys:
+    - image
+    - label
+    dtype: dtype
+Validation:
+  batch_size: 4
+  dataset_path: "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/val.txt"
+  data_augmentation:
+  - name: LoadImaged
+    keys:
+    - image
+    - label
+    image_only: true
+  - name: ScaleIntensityd
+    keys:
+    - image
+    - label
+    minv: 0
+    maxv: 1
+  - name: AddChanneld
+    keys:
+    - image
+    - label
+  - name: Rotate90d
+    keys:
+    - image
+    - label
+    k: 1
+  - name: Flipd
+    keys:
+    - image
+    - label
+    spatial_axis: 0
+  - name: SplitImageLabeld
+    keys:
+    - image
+    - label
+  - name: AddRealNoised
+    keys:
+    - image
+    noise_paths:
+    - "/home/lkreitner/arterial-tree-generation/dataset_deep_02_08_22"
+    - art_ven_gray_z.png
+    - art_ven_gray_z.png
+    noise_layer_path: "/home/lkreitner/arterial-tree-generation/dataset_deep_02_08_22"
+  - name: Resized
+    keys:
+    - image
+    - label
+    shape:
+    - 304
+    - 304
+  - name: ScaleIntensityd
+    keys:
+    - image
+    minv: 0
+    maxv: 1
+  - name: AsDiscreted
+    keys:
+    - label
+    threshold: 0.1
+  - name: CastToTyped
+    keys:
+    - image
+    - label
+    dtype: dtype
+Test:
+  batch_size: 1
+  dataset_images:
+  - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainB"
+  - ".bmp"
+  dataset_path: "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/train.txt"
+  num_samples: 5
+  save_images: false
+  data_augmentation:
+  - name: LoadImaged
+    keys:
+    - image
+    image_only: true
+  - name: ScaleIntensityd
+    keys:
+    - image
+    minv: 0
+    maxv: 1
+  - name: AddChanneld
+    keys:
+    - image
+  - name: Resized
+    keys:
+    - image
+    shape:
+    - 1216
+    - 1216
+  - name: Rotate90d
+    keys:
+    - image
+    k: 1
+  - name: Flipd
+    keys:
+    - image
+    spatial_axis: 0
+  - name: AsDiscreted
+    keys:
+    - label
+    threshold: 0.1
+  - name: CastToTyped
+    keys:
+    - image
+    dtype: dtype
+Output:
+  save_dir: "/home/lkreitner/OCTA-seg/results/ves-seg"
+  save_to_disk: true
+  save_to_tensorboard: true
+  save_interval: 1

@@ -8,6 +8,7 @@ import copy
 # from torch.utils.data import Dataset
 from monai.data import decollate_batch
 from monai.utils import set_determinism
+import yaml
 from models.networks import ResNet, resnet18, resnet50
 from monai.networks.nets import DynUNet
 from tqdm import tqdm
@@ -22,9 +23,12 @@ parser.add_argument('--config_file', type=str, required=True)
 args = parser.parse_args()
 
 # Read config file
-path = os.path.abspath(args.config_file)
-with open(path) as filepath:
-    config = json.load(filepath)
+path: str = os.path.abspath(args.config_file)
+with open(path, "r") as stream:
+    if path.endswith(".json"):
+        config = json.load(stream)
+    else:
+        config = yaml.safe_load(stream)
 
 max_epochs = config["Train"]["epochs"]
 val_interval = config["Train"]["val_interval"]

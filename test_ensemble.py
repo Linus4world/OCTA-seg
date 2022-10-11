@@ -6,6 +6,7 @@ import numpy as np
 
 from monai.data import decollate_batch
 from monai.utils import set_determinism
+import yaml
 from models.model import initialize_model
 
 from image_dataset import get_dataset, get_post_transformation
@@ -26,9 +27,12 @@ predictions = dict()
 for config_file in tqdm(config_files):
 
     # Read config file
-    path = os.path.abspath(config_file)
-    with open(path) as filepath:
-        config = json.load(filepath)
+    path: str = os.path.abspath(config_file)
+    with open(path, "r") as stream:
+        if path.endswith(".json"):
+            config = json.load(stream)
+        else:
+            config = yaml.safe_load(stream)
 
     if not os.path.exists(config["Test"]["save_dir"]):
         os.mkdir(config["Test"]["save_dir"])
