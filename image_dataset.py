@@ -25,7 +25,7 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
     """
     Create and return the data transformations for 2D segmentation images the given phase.
     """
-    if task == Task.VESSEL_SEGMENTATION or task == Task.GAN_VESSEL_SEGMENTATION:
+    if task == Task.VESSEL_SEGMENTATION or task == Task.GAN_VESSEL_SEGMENTATION or Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
         aug_config = config[phase.capitalize()]["data_augmentation"]
         return Compose(get_data_augmentations(aug_config, dtype))
     elif task == Task.RETINOPATHY_CLASSIFICATION:
@@ -153,6 +153,8 @@ def get_post_transformation(task: Task, num_classes=2) -> tuple[Compose]:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), KeepLargestConnectedComponent()]), Compose([CastToType(dtype=torch.uint8)])
     elif task == Task.GAN_VESSEL_SEGMENTATION:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose()
+    elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
+         return Compose(), Compose()
     elif task == task == Task.AREA_SEGMENTATION:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([CastToType(dtype=torch.uint8)])
     elif num_classes>1:
@@ -187,7 +189,7 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
             train_files = [{"image": path, "label":l_path, "path": path} for path, l_path in zip(image_paths, label_paths)]
         else:
             train_files = [{"image": path, "path": path} for path in image_paths]
-    elif task == Task.GAN_VESSEL_SEGMENTATION:
+    elif task == Task.GAN_VESSEL_SEGMENTATION or task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
         if phase != "test":
             A_paths = get_custom_file_paths(*config["Data"]["synthetic_images"])
         else:

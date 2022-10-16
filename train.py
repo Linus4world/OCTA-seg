@@ -9,7 +9,7 @@ from random import randint
 from monai.data import decollate_batch
 from monai.utils import set_determinism
 import yaml
-from models.model import initialize_model
+from models.model import initialize_model, initialize_optimizer
 import time
 from tqdm import tqdm
 
@@ -54,11 +54,13 @@ test_loader = get_dataset(config, 'test')
 test_loader_iter = iter(test_loader)
 post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
-model, optimizer = initialize_model(config, args)
+model = initialize_model(config)
 
 with torch.no_grad():
     inputs = next(iter(train_loader))["image"].to(device=device, dtype=torch.float32)
     visualizer.save_model_architecture(model, inputs)
+
+optimizer = initialize_optimizer(model, config, args)
 
 loss_name = config["Train"]["loss"]
 loss_function = get_loss_function_by_name(loss_name, config)

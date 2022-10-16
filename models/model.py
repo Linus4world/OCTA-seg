@@ -1,22 +1,22 @@
 from typing import Union
 import torch
+from models.cut import CUT
 from models.gan_seg_model import GanSegModel
 from utils.metrics import Task
 
 from models.networks import MODEL_DICT, init_weights
 
 
-def initialize_model(config: dict, args, load_best=False) -> tuple[torch.nn.Module, Union[torch.optim.Optimizer, tuple[torch.optim.Optimizer]]]:
+def initialize_model(config: dict) -> tuple[torch.nn.Module, Union[torch.optim.Optimizer, tuple[torch.optim.Optimizer]]]:
     # Model
     num_layers = config["General"]["num_layers"]
     kernel_size = config["General"]["kernel_size"]
     device = torch.device(config["General"]["device"])
     task: Task = config["General"]["task"]
-    model_path: str = config["Test"]["model_path"]
     num_classes=config["Data"]["num_classes"]
     model_name: str = config["General"]["model"]
     if task == Task.VESSEL_SEGMENTATION:
-        model = MODEL_DICT[config["General"]["model"]](
+        model = MODEL_DICT[model_name](
             spatial_dims=2,
             in_channels=1,
             out_channels=num_classes,
@@ -29,7 +29,7 @@ def initialize_model(config: dict, args, load_best=False) -> tuple[torch.nn.Modu
             input_channels=1
         else:
             input_channels=sum([True, config["Data"]["use_segmentation"], config["Data"]["use_background"]])
-        model = MODEL_DICT[config["General"]["model"]](
+        model = MODEL_DICT[model_name](
             spatial_dims=2,
             in_channels=sum([True, config["Data"]["use_segmentation"], config["Data"]["use_background"]]),
             out_channels=num_classes,
@@ -66,12 +66,36 @@ def initialize_model(config: dict, args, load_best=False) -> tuple[torch.nn.Modu
                 strides=(1,*[2]*num_layers,1),
                 upsample_kernel_size=(1,*[2]*num_layers,1)
             ).to(device),
-            compute_identity = config["Train"]["compute_identity"],
+            compute_identity=config["Train"]["compute_identity"],
             compute_identity_seg=config["Train"]["compute_identity_seg"]
         )
-        for m, m_name in zip([model.generator, model.discriminator, model.segmentor], [config["General"]["model_g"], config["General"]["model_d"], config["General"]["model_s"]]):
-            activation = 'relu' if m_name.lower().startswith("resnet") else 'leaky_relu'
-            init_weights(m, init_type='kaiming', nonlinearity=activation)
+    elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
+        model = CUT(
+            generator=MODEL_DICT[config["General"]["model_g"]]().to(device),
+            discriminator=MODEL_DICT[config["General"]["model_d"]]().to(device),
+            segmentor=MODEL_DICT[config["General"]["model_s"]](
+                device=device
+            ).to(device),
+            compute_identity=config["Train"]["compute_identity"],
+            compute_identity_seg=config["Train"]["compute_identity_seg"],
+            nce_layers=config["Train"]["nce_layers"]
+        )
+    return model
+
+def initialize_optimizer(model: torch.nn.Module, config: dict, args, load_best=False) -> Union[torch.optim.Optimizer, tuple[torch.optim.Optimizer]]:
+    task = config["General"]["task"]
+    model_path: str = config["Test"]["model_path"]
+    model_name: str = config["General"]["model"]
+    if task == Task.GAN_VESSEL_SEGMENTATION or task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
+        model: GanSegModel = model
+        if task == Task.GAN_VESSEL_SEGMENTATION: 
+            for m, m_name in zip([model.generator, model.discriminator, model.segmentor], [config["General"]["model_g"], config["General"]["model_d"], config["General"]["model_s"]]):
+                activation = 'relu' if m_name.lower().startswith("resnet") else 'leaky_relu'
+                init_weights(m, init_type='kaiming', nonlinearity=activation)
+        else:
+            for m, m_name in zip([model.generator, model.discriminator], [config["General"]["model_g"], config["General"]["model_d"]]):
+                activation = 'relu' if (m_name.lower().startswith("resnet") or m_name.lower().startswith("patch")) else 'leaky_relu'
+                init_weights(m, init_type='kaiming', nonlinearity=activation)
         optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=config["Train"]["lr"], betas=(0.5 , 0.999))
         optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=config["Train"]["lr"], betas=(0.5 , 0.999))
         optimizer_S = torch.optim.Adam(model.segmentor.parameters(), lr=config["Train"]["lr"])
@@ -88,9 +112,7 @@ def initialize_model(config: dict, args, load_best=False) -> tuple[torch.nn.Modu
             model.segmentor.load_state_dict(checkpoint_S['model'])
             optimizer_S.load_state_dict(checkpoint_S['optimizer'])
 
-        return model, (optimizer_G,optimizer_D,optimizer_S)
-    else:
-        raise NotImplementedError
+        return (optimizer_G,optimizer_D,optimizer_S)
 
     if hasattr(args, "start_epoch") and args.start_epoch>0:
         checkpoint = torch.load(model_path.replace('best_model', 'latest_model'))
@@ -107,4 +129,4 @@ def initialize_model(config: dict, args, load_best=False) -> tuple[torch.nn.Modu
         activation = 'relu' if model_name.lower().startswith("resnet") else 'leaky_relu'
         init_weights(model, init_type='kaiming', nonlinearity=activation)
         optimizer = torch.optim.Adam(model.parameters(), config["Train"]["lr"], weight_decay=1e-6)
-    return model, optimizer
+    return optimizer

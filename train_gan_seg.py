@@ -10,7 +10,7 @@ from monai.data import decollate_batch
 from monai.utils import set_determinism
 import yaml
 from models.gan_seg_model import GanSegModel
-from models.model import initialize_model
+from models.model import initialize_model, initialize_optimizer
 import time
 from tqdm import tqdm
 
@@ -48,13 +48,15 @@ visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT=False)
 train_loader = get_dataset(config, "train")
 post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
-model, (optimizer_G, optimizer_D, optimizer_S ) = initialize_model(config, args)
-model: GanSegModel
+model: GanSegModel = initialize_model(config)
 
 with torch.no_grad():
     batch = next(iter(train_loader))
     inputs = (batch["real_A"].to(device=device, dtype=torch.float32), batch["real_B"].to(device=device, dtype=torch.float32))
+    model.forward(inputs,complete=True)
     visualizer.save_model_architecture(model, inputs)
+
+(optimizer_G, optimizer_D, optimizer_S ) = initialize_optimizer(model, config, args)
 
 loss_name_dg = config["Train"]["loss_dg"]
 loss_name_s = config["Train"]["loss_s"]
@@ -91,7 +93,8 @@ for epoch in epoch_tqdm:
         step += 1
         real_A: torch.Tensor = batch_data["real_A"].to(device)
         real_B: torch.Tensor = batch_data["real_B"].to(device)
-        real_A_seg: torch.Tensor = batch_data["real_A_seg"].to(device)
+        if task == Task.GAN_VESSEL_SEGMENTATION:
+            real_A_seg: torch.Tensor = batch_data["real_A_seg"].to(device)
         optimizer_D.zero_grad()
         with torch.cuda.amp.autocast():
             fake_B, idt_B, pred_fake_B, pred_real_B = model.forward_GD((real_A, real_B))
@@ -106,7 +109,10 @@ for epoch in epoch_tqdm:
         optimizer_G.zero_grad()
         optimizer_S.zero_grad()
         with torch.cuda.amp.autocast():
-            pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg  = model.forward_GS(real_B, fake_B, idt_B)
+            if task==Task.GAN_VESSEL_SEGMENTATION:
+                pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg  = model.forward_GS(real_B, fake_B, idt_B)
+            else:
+                pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg, real_A_seg  = model.forward_GS(real_B, fake_B, idt_B, real_A)
             loss_G = dg_loss(pred_fake_B, True)
             if model.compute_identity:
                 loss_G_idt = criterionIdt(real_B, idt_B)
@@ -117,9 +123,9 @@ for epoch in epoch_tqdm:
 
             loss_S = 1 * s_loss(fake_B_seg, real_A_seg)
             if model.compute_identity_seg:
-                loss_S_idt = criterionIdt(torch.sigmoid(idt_B_seg), torch.sigmoid(real_B_seg))
+                loss_S_idt = s_loss(idt_B_seg, real_B_seg)
             else:
-                loss_S_idt = 0
+                loss_S_idt = torch.tensor(0)
             loss_SS = loss_S + loss_S_idt
 
             loss_GS = loss_G + loss_SS
@@ -132,7 +138,8 @@ for epoch in epoch_tqdm:
 
         real_A = [post_label(i) for i in decollate_batch(real_A)]
         fake_B_seg = [post_pred(i) for i in decollate_batch(fake_B_seg)]
-        real_B_seg = [post_pred(i) for i in decollate_batch(real_B_seg)]
+        if real_B_seg is not None:
+            real_B_seg = [post_pred(i) for i in decollate_batch(real_B_seg)]
 
         metrics(y_pred=fake_B_seg, y=real_A_seg)
 
@@ -150,7 +157,8 @@ for epoch in epoch_tqdm:
     lr_scheduler_S.step()
 
     epoch_metrics["loss"] = {k: v/step for k,v in epoch_metrics["loss"].items()}
-    epoch_metrics["metric"] = metrics.aggregate_and_reset(prefix="train")
+    if task != Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
+        epoch_metrics["metric"] = metrics.aggregate_and_reset(prefix="train")
 
     epoch_tqdm.set_description(f"avg train loss: {epoch_loss:.4f}")
 
@@ -159,18 +167,30 @@ for epoch in epoch_tqdm:
     visualizer.save_model(model.segmentor, optimizer_S, epoch+1, "latest_S", save_epoch = (epoch + 1) % save_interval == 0)
 
     visualizer.plot_losses_and_metrics(epoch_metrics, epoch)
-    visualizer.plot_gan_seg_sample(
-        real_A[0],
-        fake_B[0],
-        fake_B_seg[0],
-        real_B[0],
-        idt_B[0],
-        real_B_seg[0],
-        (epoch + 1),
-        path_A=batch_data["path_A"][0],
-        path_B=batch_data["path_B"][0],
-        save_epoch = (epoch + 1) % save_interval == 0
-    )
+    if task == Task.GAN_VESSEL_SEGMENTATION:
+        visualizer.plot_gan_seg_sample(
+            real_A[0],
+            fake_B[0],
+            fake_B_seg[0],
+            real_B[0],
+            idt_B[0],
+            real_B_seg[0],
+            (epoch + 1),
+            path_A=batch_data["path_A"][0],
+            path_B=batch_data["path_B"][0],
+            save_epoch = (epoch + 1) % save_interval == 0
+        )
+    else:
+        visualizer.plot_cut_sample(
+            real_A[0],
+            fake_B[0],
+            real_B[0],
+            idt_B[0],
+            (epoch + 1),
+            path_A=batch_data["path_A"][0],
+            path_B=batch_data["path_B"][0],
+            save_epoch = (epoch + 1) % save_interval == 0
+        )
 
 total_time = time.time() - total_start
 

@@ -8,7 +8,7 @@ import numpy as np
 from monai.data import decollate_batch
 from monai.utils import set_determinism
 import yaml
-from models.model import initialize_model
+from models.model import initialize_model, initialize_optimizer
 
 from image_dataset import get_dataset, get_post_transformation
 from utils.masks_to_nii import masks2nii
@@ -40,7 +40,8 @@ post_pred, _ = get_post_transformation(task, num_classes=config["Data"]["num_cla
 
 device = torch.device(config["General"]["device"])
 
-model, optimizer = initialize_model(config, args, load_best=True)
+model = initialize_model(config)
+optimizer = initialize_optimizer(model, config, args, load_best=True)
 predictions = []
 
 model.eval()

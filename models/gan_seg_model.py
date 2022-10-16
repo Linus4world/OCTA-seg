@@ -21,13 +21,14 @@ class GanSegModel(nn.Module):
         self.discriminator.train()
         self.segmentor.train()
 
-    def forward(self, input, _=None):
+    def forward(self, input, _=None, complete=False):
         if not isinstance(input, tuple):
             input = input, _
         real_A, real_B = input
         fake_B, idt_B, pred_fake_B, pred_real_B = self.forward_GD(input)
-        pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg = self.forward_GS(real_B, fake_B, idt_B)
-        return fake_B, pred_fake_B, pred_real_B, pred_fake_B, fake_B_seg, idt_B, real_B_seg, idt_B_seg
+        if complete:
+            pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg = self.forward_GS(real_B, fake_B, idt_B)
+        return fake_B
 
 
     def forward_GD(self, input: tuple[torch.Tensor]) -> tuple[torch.Tensor]:
@@ -35,6 +36,8 @@ class GanSegModel(nn.Module):
         fake_B = self.generator(real_A)
         if self.compute_identity_seg:
             idt_B = self.generator(real_B)
+        else:
+            idt_B = [None]
         
         self.discriminator.requires_grad_(True)
         pred_fake_B = self.discriminator(fake_B.detach())
@@ -47,13 +50,11 @@ class GanSegModel(nn.Module):
         self.discriminator.requires_grad_(False)
         pred_fake_B = self.discriminator(fake_B)
 
-        real_B_seg = self.segmentor(real_B)
+        real_B_seg = torch.sigmoid(self.segmentor(real_B))
         if self.compute_identity_seg:
-            idt_B_seg = self.segmentor(idt_B)
+            idt_B_seg = torch.sigmoid(self.segmentor(idt_B))
         else:
-            idt_B = None
-            real_B_seg = None
-            idt_B_seg = None
+            idt_B_seg = [None]
         fake_B_seg = self.segmentor(fake_B)
         return pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg
 

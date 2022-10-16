@@ -135,7 +135,9 @@ class Visualizer():
             writer.writerow([epoch, *[title for v in metric_groups.values() for title in v.values()]])
 
         if self.save_to_disk:
-            loss_fig, loss_fig_axes = plt.subplots(1,len(metric_groups), figsize=(12,5))
+            loss_fig, loss_fig_axes = plt.subplots(1,len(metric_groups), figsize=(len(metric_groups)*6,5))
+            if not isinstance(loss_fig_axes, list):
+                loss_fig_axes = [loss_fig_axes]
             i=0
             for title, record in self.track_record[-1].items():
                 data_y = [[v for v in data_t[title].values()] for data_t in self.track_record]
@@ -263,7 +265,7 @@ class Visualizer():
             "idt_B": idt_B,
             "real_B_seg": real_B_seg
         }
-        images = {k: (v.squeeze().detach().clip(0,1).cpu().numpy() * 255).astype(np.uint8) for k,v in images.items()}
+        images = {k: (v.squeeze().detach().clip(0,1).cpu().numpy() * 255).astype(np.uint8) for k,v in images.items() if v is not None}
 
         name_A = path_A.split("/")[-1]
         name_B = path_B.split("/")[-1]
@@ -273,6 +275,41 @@ class Visualizer():
         plt.title(f"A: {name_A}, B: {name_B}")
         for i, (title, img) in enumerate(images.items()):
             fig.axes[i].imshow(img)#, cmap='Greys')
+            fig.axes[i].set_title(title)
+        path = os.path.join(self.save_dir, f'latest.png')
+        plt.savefig(path, bbox_inches='tight')
+        plt.close()
+        if save_epoch:
+            copyfile(path, os.path.join(self.save_dir, f'{epoch}.png'))
+
+    def plot_cut_sample(
+        self,
+        real_A: torch.Tensor,
+        fake_B: torch.Tensor,
+        real_B: torch.Tensor,
+        idt_B: torch.Tensor,
+        epoch: int,
+        path_A: str,
+        path_B: str,
+        save_epoch=False,
+        full_size=True):
+        
+        images = {
+            "real_A": real_A,
+            "real_B": real_B,
+            "fake_B": fake_B,
+            "idt_B": idt_B
+        }
+        images = {k: (v.squeeze().detach().clip(0,1).cpu().numpy() * 255).astype(np.uint8) if v is not None else np.zeros((2,2), dtype=np.uint8) for k,v in images.items()}
+
+        name_A = path_A.split("/")[-1]
+        name_B = path_B.split("/")[-1]
+
+        inches = get_fig_size(real_A) / (1 if full_size else 2)
+        fig, _ = plt.subplots(2, 2, figsize=(2*inches, 2*inches))
+        plt.title(f"A: {name_A}, B: {name_B}")
+        for i, (title, img) in enumerate(images.items()):
+            fig.axes[i].imshow(img, cmap='gray')
             fig.axes[i].set_title(title)
         path = os.path.join(self.save_dir, f'latest.png')
         plt.savefig(path, bbox_inches='tight')

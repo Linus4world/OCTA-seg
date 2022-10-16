@@ -13,6 +13,7 @@ class Task:
     IMAGE_QUALITY_CLASSIFICATION = "img-qual-clf"
     RETINOPATHY_CLASSIFICATION = "ret-clf"
     GAN_VESSEL_SEGMENTATION = "gan-ves-seg"
+    CONSTRASTIVE_UNPAIRED_TRANSLATION = "cut"
 
 def confusion_matrix(rater_a, rater_b, min_rating=None, max_rating=None):
     assert(len(rater_a) == len(rater_b))
@@ -139,6 +140,9 @@ class MetricsManager():
                 "ROC_AUC": ROCAUCMetric(average="macro")
             }
             self.comp = "QwK"
+        else:
+            self.metrics = {}
+            self.comp = None
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
         for v in self.metrics.values():
@@ -241,10 +245,70 @@ class LSGANLoss(torch.nn.Module):
             target_tensor = self.fake_label
         return target_tensor.expand_as(prediction)
 
-    def __call__(self, prediction, target_is_real):
+    def __call__(self, prediction, target_is_real) -> torch.Tensor:
         target_tensor = self.get_target_tensor(prediction, target_is_real)
         loss = self.loss(prediction, target_tensor)
         return loss.mean()
+
+class PatchNCELoss(torch.nn.Module):
+    def __init__(self, batch_size: int, nce_T = 0.07):
+        super().__init__()
+        self.cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
+        self.mask_dtype = torch.bool
+        self.batch_size = batch_size
+        self.nce_T = nce_T
+
+    def forward(self, feat_q: torch.Tensor, feat_k: torch.Tensor) -> torch.Tensor:
+        num_patches = feat_q.shape[0]
+        dim = feat_q.shape[1]
+        feat_k = feat_k.detach()
+
+        # pos logit
+        l_pos = torch.bmm(
+            feat_q.view(num_patches, 1, -1), feat_k.view(num_patches, -1, 1))
+        l_pos = l_pos.view(num_patches, 1)
+
+        # neg logit
+
+        batch_dim_for_bmm = self.batch_size
+
+        # reshape features to batch size
+        feat_q = feat_q.view(batch_dim_for_bmm, -1, dim)
+        feat_k = feat_k.view(batch_dim_for_bmm, -1, dim)
+        npatches = feat_q.size(1)
+        l_neg_curbatch = torch.bmm(feat_q, feat_k.transpose(2, 1))
+
+        # diagonal entries are similarity between same features, and hence meaningless.
+        # just fill the diagonal with very small number, which is exp(-10) and almost zero
+        diagonal = torch.eye(npatches, device=feat_q.device, dtype=self.mask_dtype)[None, :, :]
+        l_neg_curbatch.masked_fill_(diagonal, -10.0)
+        l_neg = l_neg_curbatch.view(-1, npatches)
+
+        out = torch.cat((l_pos, l_neg), dim=1) / self.nce_T
+
+        loss = self.cross_entropy_loss(out, torch.zeros(out.size(0), dtype=torch.long,
+                                                        device=feat_q.device))
+
+        return loss
+
+class NCELoss():
+    def __init__(self, lambda_NCE: float, nce_layers: list[int], device: str, batch_size: int) -> None:
+        self.lambda_NCE = lambda_NCE
+        self.criterionNCE = []
+        self.nce_layers = nce_layers
+        self.device = device
+        
+        for nce_layer in nce_layers:
+            self.criterionNCE.append(PatchNCELoss(batch_size).to(self.device))
+
+    def __call__(self, feat_k_pool: list[torch.Tensor], feat_q_pool: list[torch.Tensor]) -> torch.Tensor:
+        n_layers = len(self.nce_layers)
+        total_nce_loss = 0.0
+        for f_q, f_k, crit in zip(feat_q_pool, feat_k_pool, self.criterionNCE):
+            loss: torch.Tensor = crit(f_q, f_k) * self.lambda_NCE
+            total_nce_loss += loss.mean()
+
+        return total_nce_loss / n_layers
 
 
 
@@ -254,7 +318,6 @@ def get_loss_function(task: Task, config: dict) -> tuple[str, Union[clDiceLoss, 
     elif task == Task.AREA_SEGMENTATION:
         return 'DiceBCELoss', DiceBCELoss()
     else:
-        # return 'CrossEntropyLoss', torch.nn.CrossEntropyLoss(weights=torch.tensor([1/0.537,1/0.349,1/0.115]))
         return "CosineEmbeddingLoss", WeightedCosineLoss(weights=[1/0.537,1/0.349,1/0.115])
 
 def get_loss_function_by_name(name: str, config: dict) -> Union[clDiceLoss, DiceBCELoss, torch.nn.CrossEntropyLoss, WeightedCosineLoss]:
@@ -266,6 +329,7 @@ def get_loss_function_by_name(name: str, config: dict) -> Union[clDiceLoss, Dice
         "MSELoss": torch.nn.MSELoss(),
         "WeightedMSELoss": WeightedMSELoss(weights=1/torch.tensor(config["Data"]["class_balance"])),
         "QWKLoss": QWKLoss(),
-        "LSGANLoss": LSGANLoss().to(device=config["General"]["device"])
+        "LSGANLoss": LSGANLoss().to(device=config["General"]["device"]),
+        "NCELoss": NCELoss(1, [0,4,8,12,16], config["General"]["device"], config["Train"]["batch_size"])
     }
     return loss_map[name]

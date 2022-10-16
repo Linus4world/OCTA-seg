@@ -7,7 +7,7 @@ import numpy as np
 
 from monai.data import decollate_batch
 import yaml
-from models.model import initialize_model
+from models.model import initialize_model, initialize_optimizer
 
 from image_dataset import get_dataset, get_post_transformation
 from utils.metrics import MetricsManager, Task
@@ -37,7 +37,8 @@ VAL_AMP = config["General"]["amp"]
 scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 
-model, optimizer = initialize_model(config, args, load_best=True)
+model = initialize_model(config)
+optimizer = initialize_optimizer(model, config, args, load_best=True)
 
 metrics = MetricsManager(task)
 predictions = []

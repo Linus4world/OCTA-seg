@@ -7,7 +7,7 @@ import numpy as np
 from monai.data import decollate_batch
 from monai.utils import set_determinism
 import yaml
-from models.model import initialize_model
+from models.model import initialize_model, initialize_optimizer
 
 from image_dataset import get_dataset, get_post_transformation
 from utils.masks_to_nii import masks2nii
@@ -47,8 +47,8 @@ for config_file in tqdm(config_files):
     # use amp to accelerate training
     device = torch.device(config["General"]["device"])
 
-    model, optimizer = initialize_model(config, None, load_best=True)
-    
+    model = initialize_model(config)
+    optimizer = initialize_optimizer(model, config, None, load_best=True)
     model.eval()
     with torch.no_grad():
         num_sample=0

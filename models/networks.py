@@ -12,6 +12,7 @@ from monai.networks.nets import DynUNet
 import numpy as np
 import functools
 import torch.nn.functional as F
+from models.cut import CUT
 from models.gan_seg_model import GanSegModel
 
 V = TypeVar("V")
@@ -463,12 +464,13 @@ def init_weights(net: nn.Module, init_type='normal', init_gain=0.02, debug=False
                 nn.init.xavier_normal_(m.weight.data, gain=init_gain)
             elif init_type == 'kaiming':
                 nn.init.kaiming_normal_(m.weight.data, a=0, mode='fan_in', nonlinearity=nonlinearity)
+                nn.init.normal_(m.bias.data, init_gain)
             elif init_type == 'orthogonal':
                 nn.init.orthogonal_(m.weight.data, gain=init_gain)
             else:
                 raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
-            if hasattr(m, 'bias') and m.bias is not None:
-                nn.init.constant_(m.bias.data, 0.0)
+            # if hasattr(m, 'bias') and m.bias is not None:
+            #     nn.init.constant_(m.bias.data, 0.0)
         elif classname.find('BatchNorm') != -1: # BatchNorm Layer's weight is not a matrix; only normal distribution applies.
             nn.init.normal_(m.weight.data, 1.0, init_gain)
             nn.init.constant_(m.bias.data, 0.0)
@@ -711,8 +713,28 @@ class ResnetGenerator(nn.Module):
 
         self.model = nn.Sequential(*model)
 
-    def forward(self, input):
-        return self.model(input)
+    def forward(self, input, layers=None, encode_only=False):
+        if layers is not None and len(layers) > 0:
+            feat = input
+            feats = []
+            for layer_id, layer in enumerate(self.model):
+                # print(layer_id, layer)
+                feat = layer(feat)
+                if layer_id in layers:
+                    # print("%d: adding the output of %s %d" % (layer_id, layer.__class__.__name__, feat.size(1)))
+                    feats.append(feat)
+                else:
+                    # print("%d: skipping %s %d" % (layer_id, layer.__class__.__name__, feat.size(1)))
+                    pass
+                if layer_id == layers[-1] and encode_only:
+                    # print('encoder only return features')
+                    return feats  # return intermediate features alone; stop in the last layers
+
+            return feat, feats  # return both output and intermediate features
+        else:
+            """Standard forward"""
+            fake = self.model(input)
+            return fake
 class NLayerDiscriminator(nn.Module):
     """Defines a PatchGAN discriminator"""
 
@@ -777,6 +799,66 @@ def patchGAN70x70():
     return NLayerDiscriminator(1, ndf=64, n_layers=3, norm_layer=get_norm_layer("instance"))
 
 
+class Normalize(nn.Module):
+
+    def __init__(self, power=2):
+        super(Normalize, self).__init__()
+        self.power = power
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        norm = x.pow(self.power).sum(1, keepdim=True).pow(1. / self.power)
+        out = x.div(norm + 1e-7)
+        return out
+
+class PatchSampleF(nn.Module):
+    def __init__(self, device: str):
+        # potential issues: currently, we use the same patch_ids for multiple images in the batch
+        super(PatchSampleF, self).__init__()
+        self.l2norm = Normalize(2)
+        self.mlp_init = False
+        self.device = device
+
+    def create_mlp(self, feats: list[torch.Tensor]):
+        for mlp_id, feat in enumerate(feats):
+            input_nc = feat.shape[1]
+            mlp = nn.Sequential(*[nn.Linear(input_nc, 256), nn.ReLU(), nn.Linear(256, 256)]).to(device=self.device)
+            setattr(self, 'mlp_%d' % mlp_id, mlp)
+        init_weights(self, init_type="kaiming", nonlinearity="relu")
+        self.mlp_init = True
+
+    def forward(self, feats: list[torch.Tensor], num_patches=64, patch_ids=None):
+        return_ids = []
+        return_feats = []
+        if not self.mlp_init:
+            self.create_mlp(feats)
+        for feat_id, feat in enumerate(feats):
+            B, H, W = feat.shape[0], feat.shape[2], feat.shape[3]
+            feat_reshape = feat.permute(0, 2, 3, 1).flatten(1, 2)
+            if num_patches > 0:
+                if patch_ids is not None:
+                    patch_id = patch_ids[feat_id]
+                else:
+                    # torch.randperm produces cudaErrorIllegalAddress for newer versions of PyTorch. https://github.com/taesungp/contrastive-unpaired-translation/issues/83
+                    patch_id = torch.randperm(feat_reshape.shape[1], device=feats[0].device)
+                    # k = feat_reshape.shape[1].item()
+                    # patch_id = np.random.permutation(k)
+                    patch_id = patch_id[:int(min(num_patches, patch_id.shape[0]))]  # .to(patch_ids.device)
+                    # patch_id = torch.tensor(patch_id, dtype=torch.long, device=feat.device)
+                x_sample = feat_reshape[:, patch_id, :].flatten(0, 1)  # reshape(-1, x.shape[1])
+            else:
+                x_sample = feat_reshape
+                patch_id = []
+            mlp = getattr(self, 'mlp_%d' % feat_id)
+            x_sample: torch.Tensor = mlp(x_sample)
+            return_ids.append(patch_id)
+            x_sample = self.l2norm(x_sample)
+
+            if num_patches == 0:
+                x_sample = x_sample.permute(0, 2, 1).reshape([B, x_sample.shape[-1], H, W])
+            return_feats.append(x_sample)
+        return return_feats, return_ids
+
+
 MODEL_DICT: dict[str, Union[ResNet, EfficientNet, DynUNet]] = {
     "resnet18": resnet18,
     "resnet34": resnet34,
@@ -787,5 +869,7 @@ MODEL_DICT: dict[str, Union[ResNet, EfficientNet, DynUNet]] = {
     "DynUNet": DynUNet,
     "GanSegModel": GanSegModel,
     "resnetGenerator9": resnetGenerator9,
-    "patchGAN70x70": patchGAN70x70
+    "patchGAN70x70": patchGAN70x70,
+    "CUT": CUT,
+    "PatchSampleF": PatchSampleF
 }
