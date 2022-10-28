@@ -50,12 +50,12 @@ class GanSegModel(nn.Module):
         self.discriminator.requires_grad_(False)
         pred_fake_B = self.discriminator(fake_B)
 
-        real_B_seg = torch.sigmoid(self.segmentor(real_B))
+        real_B_seg = self.segmentor(torch.nn.functional.interpolate(real_B, scale_factor=4, mode="bilinear"))
         if self.compute_identity_seg:
-            idt_B_seg = torch.sigmoid(self.segmentor(idt_B))
+            idt_B_seg = self.segmentor(torch.nn.functional.interpolate(idt_B, scale_factor=4, mode="bilinear"))
         else:
             idt_B_seg = [None]
-        fake_B_seg = self.segmentor(fake_B)
+        fake_B_seg = self.segmentor(torch.nn.functional.interpolate(fake_B, scale_factor=4, mode="bilinear"))
         return pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg
 
     def apply(self, init_func):

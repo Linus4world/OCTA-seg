@@ -150,7 +150,7 @@ def get_post_transformation(task: Task, num_classes=2) -> tuple[Compose]:
     Create and return the data transformation that is applied to the model prediction before inference.
     """
     if task == Task.VESSEL_SEGMENTATION:
-        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), KeepLargestConnectedComponent()]), Compose([CastToType(dtype=torch.uint8)])
+        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), RemoveSmallObjects(396)]), Compose([CastToType(dtype=torch.uint8)])
     elif task == Task.GAN_VESSEL_SEGMENTATION:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose()
     elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
@@ -175,9 +175,12 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
     else:
         data_path = config["Data"]["dataset_images"]
 
-    with open(config[phase.capitalize()]["dataset_path"], 'r') as f:
-        lines = f.readlines()
-        indices = [int(line.rstrip()) for line in lines]
+    if "dataset_path" in config[phase.capitalize()]:
+        with open(config[phase.capitalize()]["dataset_path"], 'r') as f:
+            lines = f.readlines()
+            indices = [int(line.rstrip()) for line in lines]
+    else:
+        indices = slice(None, None)
 
     image_paths = get_custom_file_paths(*data_path)
     image_paths = array(image_paths)[indices].tolist()
@@ -189,12 +192,21 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
             train_files = [{"image": path, "label":l_path, "path": path} for path, l_path in zip(image_paths, label_paths)]
         else:
             train_files = [{"image": path, "path": path} for path in image_paths]
-    elif task == Task.GAN_VESSEL_SEGMENTATION or task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
+    elif task == Task.GAN_VESSEL_SEGMENTATION:
         if phase != "test":
             A_paths = get_custom_file_paths(*config["Data"]["synthetic_images"])
         else:
             A_paths = None
         data_set = UnalignedZipDataset(A_paths, image_paths, transform)
+        loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
+        return loader
+    elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
+        if phase != "test":
+            A_paths = get_custom_file_paths(*config["Data"]["synthetic_images"])
+        else:
+            A_paths = image_paths
+            image_paths = None
+        data_set = UnalignedZipDataset(A_paths, image_paths, transform, phase)
         loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
         return loader
     elif task == Task.RETINOPATHY_CLASSIFICATION or task == Task.IMAGE_QUALITY_CLASSIFICATION:

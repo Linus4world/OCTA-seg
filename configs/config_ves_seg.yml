@@ -8,11 +8,16 @@ General:
   model: DynUNet
 Data:
   dataset_images:
-  - "/home/lkreitner/OCTA-CUT/results/OCTA_3x3_31-09-22/test_100/images/fake_B/"
-  - z.png
+  # - "/home/lkreitner/OCTA-CUT/results/OCTA_3x3_31-09-22/test_100/images/fake_B/"
+  # - z.png
+  # - "/home/lkreitner/OCTA-CUT/results/OCTA_3x3_11-10-22/test_300/images/fake_B"
+  # - .png
+  - /home/lkreitner/OCTA-seg/results/cut/20221021_224019/test_150
+  - .png
   dataset_labels:
-  - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA"
-  - z.png
+  - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_00135"
+  # - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_OLD"
+  - .png
   num_classes: 1
   class_balance:
   - 1
@@ -43,6 +48,7 @@ Train:
   - name: Resized
     keys:
     - image
+    - label
     shape:
     - 1216
     - 1216
@@ -71,6 +77,13 @@ Train:
     - image
     minv: 0
     maxv: 1
+  - name: RandAdjustContrastd
+    keys:
+    - image
+    prob: 1
+    gamma:
+    - 0.5
+    - 2.5
   - name: AsDiscreted
     keys:
     - label
@@ -102,6 +115,7 @@ Validation:
   - name: Resized
     keys:
     - image
+    - label
     shape:
     - 1216
     - 1216
@@ -127,9 +141,12 @@ Validation:
 Test:
   batch_size: 1
   dataset_images:
-  - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainB"
-  - ".bmp"
-  dataset_path: "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/train.txt"
+  # - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainB"
+  # - ".bmp"
+  - /home/lkreitner/OCTA-seg/datasets/Munich_OCTA
+  - .png
+  # dataset_path: "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/train.txt"
+  dataset_path: /home/lkreitner/OCTA-seg/datasets/Munich_OCTA/test.txt
   num_samples: 10
   save_images: false
   data_augmentation:
@@ -148,6 +165,7 @@ Test:
   - name: Resized
     keys:
     - image
+    - label
     shape:
     - 1216
     - 1216

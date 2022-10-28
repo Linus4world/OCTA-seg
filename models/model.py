@@ -82,7 +82,7 @@ def initialize_model(config: dict) -> tuple[torch.nn.Module, Union[torch.optim.O
         )
     return model
 
-def initialize_optimizer(model: torch.nn.Module, config: dict, args, load_best=False) -> Union[torch.optim.Optimizer, tuple[torch.optim.Optimizer]]:
+def initialize_optimizer(model: torch.nn.Module, config: dict, args, load_best=False, phase="train") -> Union[torch.optim.Optimizer, tuple[torch.optim.Optimizer]]:
     task = config["General"]["task"]
     model_path: str = config["Test"]["model_path"]
     model_name: str = config["General"]["model"]
@@ -96,23 +96,30 @@ def initialize_optimizer(model: torch.nn.Module, config: dict, args, load_best=F
             for m, m_name in zip([model.generator, model.discriminator], [config["General"]["model_g"], config["General"]["model_d"]]):
                 activation = 'relu' if (m_name.lower().startswith("resnet") or m_name.lower().startswith("patch")) else 'leaky_relu'
                 init_weights(m, init_type='kaiming', nonlinearity=activation)
-        optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=config["Train"]["lr"], betas=(0.5 , 0.999))
-        optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=config["Train"]["lr"], betas=(0.5 , 0.999))
-        optimizer_S = torch.optim.Adam(model.segmentor.parameters(), lr=config["Train"]["lr"])
-        if hasattr(args, "start_epoch") and args.start_epoch>0:
-            checkpoint_G = torch.load(model_path.replace('best_model', 'latest_G_model'))
+        if phase == "train":
+            optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=config["Train"]["lr"], betas=(0.5 , 0.999))
+            optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=config["Train"]["lr"], betas=(0.5 , 0.999))
+            optimizer_S = torch.optim.Adam(model.segmentor.parameters(), lr=config["Train"]["lr"])
+            if hasattr(args, "start_epoch") and args.start_epoch>0:
+                checkpoint_G = torch.load(model_path.replace('best_model', 'latest_G_model'))
+                model.generator.load_state_dict(checkpoint_G['model'])
+                optimizer_G.load_state_dict(checkpoint_G['optimizer'])
+
+                checkpoint_D = torch.load(model_path.replace('best_model', 'latest_D_model'))
+                model.discriminator.load_state_dict(checkpoint_D['model'])
+                optimizer_D.load_state_dict(checkpoint_D['optimizer'])
+
+                checkpoint_S = torch.load(model_path.replace('best_model', 'latest_S_model'))
+                model.segmentor.load_state_dict(checkpoint_S['model'])
+                optimizer_S.load_state_dict(checkpoint_S['optimizer'])
+        
+            return (optimizer_G,optimizer_D,optimizer_S)
+        elif hasattr(args, "start_epoch") and args.start_epoch>0 or load_best:
+            epoch_prefix = f"{args.epoch}_" if args.epoch is not None else "" 
+            checkpoint_G = torch.load(model_path.replace('best_model', epoch_prefix+'latest_G_model'))
             model.generator.load_state_dict(checkpoint_G['model'])
-            optimizer_G.load_state_dict(checkpoint_G['optimizer'])
+            return None
 
-            checkpoint_D = torch.load(model_path.replace('best_model', 'latest_D_model'))
-            model.discriminator.load_state_dict(checkpoint_D['model'])
-            optimizer_D.load_state_dict(checkpoint_D['optimizer'])
-
-            checkpoint_S = torch.load(model_path.replace('best_model', 'latest_S_model'))
-            model.segmentor.load_state_dict(checkpoint_S['model'])
-            optimizer_S.load_state_dict(checkpoint_S['optimizer'])
-
-        return (optimizer_G,optimizer_D,optimizer_S)
 
     if hasattr(args, "start_epoch") and args.start_epoch>0:
         checkpoint = torch.load(model_path.replace('best_model', 'latest_model'))

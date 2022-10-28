@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 import torch
 from monai.metrics import MeanIoU, ROCAUCMetric, MSEMetric
-from utils.cl_dice_loss import clDiceLoss
+from utils.cl_dice_loss import clDiceBceLoss, clDiceLoss
 from monai.losses import DiceLoss
 
 
@@ -114,7 +114,7 @@ class MacroDiceMetric:
         if len(self.preds) > 0:
             dice_list = []
             for gt_array, pred_array in zip(self.labels, self.preds):
-                dice = self.get_dice(gt_array, pred_array, 1)
+                dice = self.get_dice(gt_array.astype(np.float32), pred_array.astype(np.float32), 1)
                 dice_list.append(dice)
             mDice = np.nanmean(dice_list)
             return torch.tensor(mDice)
@@ -301,10 +301,10 @@ class NCELoss():
         for nce_layer in nce_layers:
             self.criterionNCE.append(PatchNCELoss(batch_size).to(self.device))
 
-    def __call__(self, feat_k_pool: list[torch.Tensor], feat_q_pool: list[torch.Tensor]) -> torch.Tensor:
+    def __call__(self, feat_q_pool: list[torch.Tensor], feat_k_pool: list[torch.Tensor]) -> torch.Tensor:
         n_layers = len(self.nce_layers)
         total_nce_loss = 0.0
-        for f_q, f_k, crit in zip(feat_q_pool, feat_k_pool, self.criterionNCE):
+        for f_q, f_k, crit, _ in zip(feat_q_pool, feat_k_pool, self.criterionNCE, self.nce_layers):
             loss: torch.Tensor = crit(f_q, f_k) * self.lambda_NCE
             total_nce_loss += loss.mean()
 
@@ -324,12 +324,13 @@ def get_loss_function_by_name(name: str, config: dict) -> Union[clDiceLoss, Dice
     loss_map = {
         "clDiceLoss": clDiceLoss(alpha=config["Train"]["lambda_cl_dice"] if "lambda_cl_dice" in config["Train"] else 0),
         "DiceBCELoss": DiceBCELoss(True),
+        "clDiceBceLoss": clDiceBceLoss(lambda_dice=0.4, lambda_cldice=0.1, lambda_bce=0.5, sigmoid=True),
         "CrossEntropyLoss": torch.nn.CrossEntropyLoss(weight=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),
         "CosineEmbeddingLoss": WeightedCosineLoss(weights=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),
         "MSELoss": torch.nn.MSELoss(),
         "WeightedMSELoss": WeightedMSELoss(weights=1/torch.tensor(config["Data"]["class_balance"])),
         "QWKLoss": QWKLoss(),
         "LSGANLoss": LSGANLoss().to(device=config["General"]["device"]),
-        "NCELoss": NCELoss(1, [0,4,8,12,16], config["General"]["device"], config["Train"]["batch_size"])
+        "NCELoss": NCELoss(config["Train"]["lambda_NCE"] if "lambda_NCE" in config["Train"] else 0, config["Train"]["nce_layers"] if "nce_layers" in config["Train"] else [], config["General"]["device"], config["Train"]["batch_size"])
     }
     return loss_map[name]

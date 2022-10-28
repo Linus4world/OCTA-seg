@@ -9,10 +9,10 @@ import datetime
 import csv
 import nibabel as nib
 import json
+import yaml
 import math
 from PIL import Image
 from utils.metrics import Task
-
 from utils.voreen_vesselgraphextraction import extract_vessel_graph
 
 class Visualizer():
@@ -71,11 +71,12 @@ class Visualizer():
                 self.tb = SummaryWriter(log_dir=self.save_dir)
         
         config["Output"]["save_dir"] = self.save_dir
-        config["Test"]["save_dir"] = os.path.join(self.save_dir, 'test/')
-        config["Validation"]["save_dir"] = os.path.join(self.save_dir, 'val/')
+        config["Test"]["save_dir"] = os.path.join(self.save_dir, 'test')
+        config["Validation"]["save_dir"] = os.path.join(self.save_dir, 'val')
         config["Test"]["model_path"] = os.path.join(self.save_dir, 'best_model.pth')
-        with open(os.path.join(self.save_dir, 'config.json'), 'w') as f:
-            json.dump(config, f, ensure_ascii=False, indent=4)
+        with open(os.path.join(self.save_dir, 'config.yml'), 'w') as f:
+            yaml.dump(config, f)
+            # json.dump(config, f, ensure_ascii=False, indent=4)
 
     def _prepare_log_file(self, record: dict[str, dict[str, float]]):
         titles = [title for v in record.values() for title in v]
@@ -136,7 +137,7 @@ class Visualizer():
 
         if self.save_to_disk:
             loss_fig, loss_fig_axes = plt.subplots(1,len(metric_groups), figsize=(len(metric_groups)*6,5))
-            if not isinstance(loss_fig_axes, list):
+            if not (isinstance(loss_fig_axes, list) or isinstance(loss_fig_axes, np.ndarray)):
                 loss_fig_axes = [loss_fig_axes]
             i=0
             for title, record in self.track_record[-1].items():
@@ -274,7 +275,7 @@ class Visualizer():
         fig, _ = plt.subplots(2, 3, figsize=(3*inches, 2*inches))
         plt.title(f"A: {name_A}, B: {name_B}")
         for i, (title, img) in enumerate(images.items()):
-            fig.axes[i].imshow(img)#, cmap='Greys')
+            fig.axes[i].imshow(img, cmap='gray')
             fig.axes[i].set_title(title)
         path = os.path.join(self.save_dir, f'latest.png')
         plt.savefig(path, bbox_inches='tight')
@@ -309,6 +310,8 @@ class Visualizer():
         fig, _ = plt.subplots(2, 2, figsize=(2*inches, 2*inches))
         plt.title(f"A: {name_A}, B: {name_B}")
         for i, (title, img) in enumerate(images.items()):
+            if len(img.shape)==3:
+                img=img[0]
             fig.axes[i].imshow(img, cmap='gray')
             fig.axes[i].set_title(title)
         path = os.path.join(self.save_dir, f'latest.png')
@@ -375,18 +378,18 @@ def plot_sample(
         fig.axes[0].set_title(f"{name} - Input")
         if (input.shape[0]==3):
             input = np.moveaxis(input,0,-1)
-        fig.axes[0].imshow(input)#, cmap='Greys')
+        fig.axes[0].imshow(input, cmap='gray')
 
         fig.axes[1].set_title("Prediction")
         if (pred.shape[0]==3):
             pred = np.moveaxis(pred,0,-1)
-        fig.axes[1].imshow(pred)#, cmap='Greys')
+        fig.axes[1].imshow(pred, cmap='gray')
 
         if truth is not None:
             fig.axes[2].set_title("Truth")
             if (truth.shape[0]==3):
                 truth = np.moveaxis(truth,0,-1)
-            fig.axes[2].imshow(truth)#, cmap='Greys')
+            fig.axes[2].imshow(truth, cmap='gray')
 
         if suffix is not None:
             suffix = '_'+suffix
@@ -417,9 +420,9 @@ def plot_clf_sample(
             name = path[i].split("/")[-1]
             fig.axes[i].set_title(f"{name} - Pred: {np.round(pred[i].detach().cpu().numpy(),2)}, Real: {truth[i].detach().cpu().numpy()}")
             if len(input[i].shape)==3:
-                fig.axes[i].imshow(input[i][-1])#, cmap='Greys')
+                fig.axes[i].imshow(input[i][-1], cmap='gray')
             else:
-                fig.axes[i].imshow(input[i])#, cmap='Greys')
+                fig.axes[i].imshow(input[i], cmap='gray')
         if suffix is not None:
             suffix = '_'+suffix
         else:
@@ -449,7 +452,7 @@ def extract_vessel_graph_features(img_2D_proj: torch.Tensor, save_dir: str, vore
     nii_path = os.path.join(voreen_config["tempdir"], f'sample{number}.nii')
     nib.save(img_nii, nii_path)
     return extract_vessel_graph(nii_path, 
-        save_dir,
+        save_dir+"/",
         voreen_config["tempdir"],
         voreen_config["cachedir"],
         voreen_config["bulge_size"],

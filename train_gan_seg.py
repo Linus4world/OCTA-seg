@@ -48,6 +48,9 @@ visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT=False)
 train_loader = get_dataset(config, "train")
 post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
+# import warnings
+# warnings.filterwarnings('error', category=RuntimeWarning)
+
 model: GanSegModel = initialize_model(config)
 
 with torch.no_grad():
@@ -64,7 +67,7 @@ dg_loss = get_loss_function_by_name(loss_name_dg, config)
 s_loss = get_loss_function_by_name(loss_name_s, config)
 criterionIdt = torch.nn.L1Loss().to(device)
 def schedule(step: int):
-    if step < max_epochs - config["Train"]["epochs_decay"]:
+    if step < (max_epochs - config["Train"]["epochs_decay"]):
         return 1
     else:
         return (max_epochs-step) * (1/max(1,config["Train"]["epochs_decay"]))
@@ -121,12 +124,13 @@ for epoch in epoch_tqdm:
 
             loss_G += loss_G_idt
 
-            loss_S = 1 * s_loss(fake_B_seg, real_A_seg)
+            loss_S = s_loss(fake_B_seg, real_A_seg)
             if model.compute_identity_seg:
-                loss_S_idt = s_loss(idt_B_seg, real_B_seg)
+                loss_S_idt = s_loss(idt_B_seg, torch.sigmoid(real_B_seg) if task == Task.GAN_VESSEL_SEGMENTATION else real_B_seg)
+                loss_SS = 0.5*(loss_S + loss_S_idt)
             else:
                 loss_S_idt = torch.tensor(0)
-            loss_SS = loss_S + loss_S_idt
+                loss_SS = loss_S
 
             loss_GS = loss_G + loss_SS
 
@@ -147,7 +151,7 @@ for epoch in epoch_tqdm:
         epoch_metrics["loss"]["D_real"] += loss_D_real.item()
         epoch_metrics["loss"]["G"] += loss_G.item()
         epoch_metrics["loss"]["G_idt"] += loss_G_idt.item()
-        epoch_metrics["loss"]["S"] += loss_SS.item()
+        epoch_metrics["loss"]["S"] += loss_S.item()
         epoch_metrics["loss"]["S_idt"] += loss_S_idt.item()
 
         epoch_loss += loss_SS.item()

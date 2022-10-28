@@ -464,7 +464,6 @@ def init_weights(net: nn.Module, init_type='normal', init_gain=0.02, debug=False
                 nn.init.xavier_normal_(m.weight.data, gain=init_gain)
             elif init_type == 'kaiming':
                 nn.init.kaiming_normal_(m.weight.data, a=0, mode='fan_in', nonlinearity=nonlinearity)
-                nn.init.normal_(m.bias.data, init_gain)
             elif init_type == 'orthogonal':
                 nn.init.orthogonal_(m.weight.data, gain=init_gain)
             else:
@@ -793,7 +792,7 @@ class NLayerDiscriminator(nn.Module):
         return self.model(input)
 
 def resnetGenerator9():
-    return ResnetGenerator(1, 1, ngf=64, norm_layer=get_norm_layer("instance"), n_blocks=9)
+    return ResnetGenerator(2, 1, ngf=64, norm_layer=get_norm_layer("instance"), n_blocks=9)
 
 def patchGAN70x70():
     return NLayerDiscriminator(1, ndf=64, n_layers=3, norm_layer=get_norm_layer("instance"))

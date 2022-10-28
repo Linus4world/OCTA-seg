@@ -186,3 +186,47 @@ class clDiceLoss():
     def __repr__(self):
 
         return "clDiceLoss (new)()"
+
+class clDiceBceLoss():
+    """
+    The clDiceLoss is a combination of the classical Dice loss and the centerline Dice loss as described in
+    [clDice - a Novel Topology-Preserving Loss Function for Tubular Structure Segmentation](https://openaccess.thecvf.com/content/CVPR2021/papers/Shit_clDice_-_A_Novel_Topology-Preserving_Loss_Function_for_Tubular_Structure_CVPR_2021_paper.pdf).
+    It aims to better preserve the topology of a vessel system.
+    """
+    def __init__(self, lambda_dice=0.33, lambda_cldice=0.33, lambda_bce=0.33, sigmoid=False):
+        """
+        Create a clDiceLoss instance.
+
+        Paramters:
+            - alpha: How to weight the clDice to the classical dice. Alpha=0 means to only use the classical Dice loss.
+        """
+        self.lambda_dice=lambda_dice
+        self.lambda_cldice=lambda_cldice
+        self.lambda_bce=lambda_bce
+        self.sigmoid = sigmoid
+        self.dice_loss = DiceLoss(smooth_nr=0, smooth_dr=1e-5, squared_pred=True, to_onehot_y=False, sigmoid=sigmoid)
+        self.bce = torch.nn.BCEWithLogitsLoss()
+
+    def __call__(self, predictions, target):
+        if self.lambda_dice>0:
+            dice_loss = self.lambda_dice * self.dice_loss(predictions, target)
+        else:
+            dice_loss=0
+        if self.lambda_bce>0:
+            bce_loss = self.lambda_bce * self.bce(predictions, target)
+        else:
+            bce_loss=0
+
+        if self.lambda_cldice > 0:
+            target = torch.clip(target, 0.0, 1.0)
+            if self.sigmoid:
+                predictions = torch.sigmoid(predictions)
+            skel_pred = soft_skel_v2(predictions)
+            skel_true = soft_skel_v2(target)
+            tprec = (torch.sum(torch.multiply(skel_pred, target)[:,...]) + 1e-8) / (torch.sum(skel_pred[:,...]) + 1e-8)    
+            tsens = (torch.sum(torch.multiply(skel_true, predictions)[:,...]) + 1e-8) / (torch.sum(skel_true[:,...]) + 1e-8)    
+            cl_dice_loss = 1.0 - 2.0 * (tprec*tsens) / (tprec+tsens)
+            cl_dice_loss = self.lambda_cldice * cl_dice_loss
+        else:
+            cl_dice_loss = 0
+        return dice_loss+cl_dice_loss+bce_loss

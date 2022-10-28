@@ -1,4 +1,3 @@
-from monai.transforms import Transform, MapTransform
 import torch
 from numpy import prod, load, array
 from numpy.random import normal
@@ -25,6 +24,18 @@ class RandomDecreaseResolutiond(MapTransform):
                 d = torch.nn.functional.interpolate(d.unsqueeze(0), scale_factor=factor)
                 d = torch.nn.functional.interpolate(d, size=size[1:]).squeeze(0)
                 data[key]=d
+        return data
+
+class AddRandomGaussianNoiseChanneld(MapTransform):
+    def __init__(self, keys:  tuple[str]) -> None:
+        super().__init__(keys, True)
+
+    def __call__(self, data):
+        for key in self.keys:
+            img = data[key]
+            noise = torch.sigmoid(torch.rand_like(img))
+            img = torch.cat((img, noise), dim=0)
+            data[key] = img
         return data
 
 class AsOneHot():
