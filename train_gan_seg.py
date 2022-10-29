@@ -114,11 +114,13 @@ for epoch in epoch_tqdm:
         with torch.cuda.amp.autocast():
             if task==Task.GAN_VESSEL_SEGMENTATION:
                 pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg  = model.forward_GS(real_B, fake_B, idt_B)
+                real_B_seg[real_B_seg<=0.5]=0
+                real_B_seg[real_B_seg>0.5]=1
             else:
                 pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg, real_A_seg  = model.forward_GS(real_B, fake_B, idt_B, real_A)
             loss_G = dg_loss(pred_fake_B, True)
             if model.compute_identity:
-                loss_G_idt = criterionIdt(real_B, idt_B)
+                loss_G_idt = criterionIdt(idt_B, real_B)
             else:
                 loss_G_idt = torch.tensor(0)
 
@@ -126,7 +128,7 @@ for epoch in epoch_tqdm:
 
             loss_S = s_loss(fake_B_seg, real_A_seg)
             if model.compute_identity_seg:
-                loss_S_idt = s_loss(idt_B_seg, torch.sigmoid(real_B_seg) if task == Task.GAN_VESSEL_SEGMENTATION else real_B_seg)
+                loss_S_idt = s_loss(idt_B_seg, real_B_seg)
                 loss_SS = 0.5*(loss_S + loss_S_idt)
             else:
                 loss_S_idt = torch.tensor(0)
@@ -140,10 +142,10 @@ for epoch in epoch_tqdm:
         scaler.update()
 
 
-        real_A = [post_label(i) for i in decollate_batch(real_A)]
-        fake_B_seg = [post_pred(i) for i in decollate_batch(fake_B_seg)]
+        real_A = [post_label(i) for i in decollate_batch(real_A[0:1, 0:1])]
+        fake_B_seg = [post_pred(i) for i in decollate_batch(fake_B_seg[0:1])]
         if real_B_seg is not None:
-            real_B_seg = [post_pred(i) for i in decollate_batch(real_B_seg)]
+            real_B_seg = [post_pred(i) for i in decollate_batch(real_B_seg[0:1])]
 
         metrics(y_pred=fake_B_seg, y=real_A_seg)
 

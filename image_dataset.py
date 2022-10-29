@@ -152,7 +152,7 @@ def get_post_transformation(task: Task, num_classes=2) -> tuple[Compose]:
     if task == Task.VESSEL_SEGMENTATION:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), RemoveSmallObjects(396)]), Compose([CastToType(dtype=torch.uint8)])
     elif task == Task.GAN_VESSEL_SEGMENTATION:
-        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose()
+        return Compose([AsDiscrete(threshold=0.5), RemoveSmallObjects(396)]), Compose()
     elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
          return Compose(), Compose()
     elif task == task == Task.AREA_SEGMENTATION:

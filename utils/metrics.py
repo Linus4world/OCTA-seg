@@ -162,7 +162,10 @@ class MetricsManager():
 class DiceBCELoss():
     def __init__(self, sigmoid=False):
         super().__init__()
-        self.bce = torch.nn.BCEWithLogitsLoss()
+        if sigmoid:
+            self.bce = torch.nn.BCEWithLogitsLoss()
+        else:
+            self.bce = torch.nn.BCELoss()
         self.dice = DiceLoss(sigmoid=sigmoid)
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):

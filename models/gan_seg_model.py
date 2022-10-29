@@ -35,7 +35,7 @@ class GanSegModel(nn.Module):
         real_A, real_B = input
         fake_B = self.generator(real_A)
         if self.compute_identity_seg:
-            idt_B = self.generator(real_B)
+            idt_B = self.generator(torch.cat((real_B, real_A[:,0:1]), dim=1))
         else:
             idt_B = [None]
         

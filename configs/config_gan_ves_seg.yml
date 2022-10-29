@@ -94,6 +94,9 @@ Train:
     shape:
     - 304
     - 304
+  - name: AddRandomGaussianNoiseChanneld
+    keys:
+    - real_A
   - name: CastToTyped
     keys:
     - real_A
