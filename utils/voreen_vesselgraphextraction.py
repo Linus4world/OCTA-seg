@@ -6,7 +6,7 @@ import h5py
 import numpy as np
 
 
-def extract_vessel_graph(volume_path: str, outdir: str, tempdir: str, cachedir:str, bulge_size: float, workspace_file: str, voreen_tool_path: str, number=''):
+def extract_vessel_graph(volume_path: str, outdir: str, tempdir: str, cachedir:str, bulge_size: float, workspace_file: str, voreen_tool_path: str, name=''):
     bulge_size_identifier = f'{bulge_size}'
     bulge_size_identifier = bulge_size_identifier.replace('.','_')
 
@@ -14,9 +14,9 @@ def extract_vessel_graph(volume_path: str, outdir: str, tempdir: str, cachedir:s
 
     bulge_size_identifier = f'{bulge_size}'
     bulge_size_identifier = bulge_size_identifier.replace('.','_')
-    edge_path = f'{outdir}sample_{number}_edges.csv'
-    node_path = f'{outdir}sample_{number}_nodes.csv'
-    graph_path = f'{outdir}sample_{number}_graph.json'
+    edge_path = f'{outdir}{name}_edges.csv'
+    node_path = f'{outdir}{name}_nodes.csv'
+    graph_path = f'{outdir}{name}_graph.json'
 
     # create temp directory
     temp_directory = os.path.join(tempdir,datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S"))

@@ -3,13 +3,15 @@ from monai.transforms import Compose
 import random
 
 class UnalignedZipDataset(Dataset):
-    def __init__(self, A_paths, B_paths, transform: Compose, phase = "train") -> None:
+    def __init__(self, A_paths: list[str], B_paths: list[str], A_seg_paths: list[str], transform: Compose, phase = "train") -> None:
         super().__init__()
         self.A_paths = A_paths
         self.B_paths = B_paths
+        self.A_seg_paths = A_seg_paths
         self.transform = transform
         self.A_size = 0 if A_paths is None else len(A_paths)
         self.B_size = 0 if B_paths is None else len(B_paths)
+        self.A_seg_size = 0 if A_seg_paths is None else len(A_seg_paths)
         self.phase = phase
 
     def __len__(self) -> int:
@@ -38,6 +40,10 @@ class UnalignedZipDataset(Dataset):
             B_path = self.B_paths[random.randint(0, self.B_size - 1)]
             data["path_B"] = B_path
             data["real_B"] = B_path
+        if self.A_seg_paths is not None:
+            A_seg_path = self.A_seg_paths[index % self.A_size]
+            data["path_A_seg"] = A_seg_path
+            data["real_A_seg"] = A_seg_path
         data_transformed = self.transform(data)
         return data_transformed
 

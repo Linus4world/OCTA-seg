@@ -13,7 +13,7 @@ import torch
 from monai.data import decollate_batch
 from monai.utils import set_determinism
 import yaml
-from models.model import initialize_model, initialize_optimizer
+from models.model import define_model, initialize_model_and_optimizer
 
 from image_dataset import get_dataset, get_post_transformation
 from utils.metrics import MetricsManager, Task, get_loss_function_by_name
@@ -60,8 +60,8 @@ def training_function(config_i: dict):
     if "model" in config_i:
         config_i["General"]["model"]=config_i["model"]
 
-    model = initialize_model(config_i)
-    optimizer = initialize_optimizer(model, config_i, args)
+    model = define_model(config_i)
+    optimizer = initialize_model_and_optimizer(model, config_i, args)
 
     # If the trail was previously terminated or paused, it can be reloaded from a checkpoint. `Session.get_checkpoint` will automatically find the correct checkpoint.
     loaded_checkpoint = session.get_checkpoint()

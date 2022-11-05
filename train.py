@@ -9,7 +9,7 @@ from random import randint
 from monai.data import decollate_batch
 from monai.utils import set_determinism
 import yaml
-from models.model import initialize_model, initialize_optimizer
+from models.model import define_model, initialize_model_and_optimizer
 import time
 from tqdm import tqdm
 
@@ -54,13 +54,13 @@ test_loader = get_dataset(config, 'test')
 test_loader_iter = iter(test_loader)
 post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
-model = initialize_model(config)
+model = define_model(config)
 
 with torch.no_grad():
     inputs = next(iter(train_loader))["image"].to(device=device, dtype=torch.float32)
     visualizer.save_model_architecture(model, inputs)
 
-optimizer = initialize_optimizer(model, config, args)
+optimizer = initialize_model_and_optimizer(model, config, args)
 
 loss_name = config["Train"]["loss"]
 loss_function = get_loss_function_by_name(loss_name, config)
@@ -71,6 +71,8 @@ def schedule(step: int):
         return (max_epochs-step) * (1/max(1,config["Train"]["epochs_decay"]))
 lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, schedule)
 metrics = MetricsManager(task)
+if config["Train"]["AT"]:
+    at = get_loss_function_by_name("AtLoss", config, scaler, loss_function)
 
 
 # TRAINING BEGINS HERE
@@ -95,16 +97,22 @@ for epoch in epoch_tqdm:
             batch_data["label"].to(device),
         )
         optimizer.zero_grad()
+        if config["Train"]["AT"]:
+            inputs, reg = at(model, inputs, labels)
+        else:
+            reg=0
         with torch.cuda.amp.autocast():
+
             outputs = model(inputs)
             if config["Data"]["num_classes"]==1:
                 outputs=outputs.squeeze(-1)
                 labels=labels.to(dtype=outputs.dtype)
+
             loss = loss_function(outputs, labels)
             labels = [post_label(i) for i in decollate_batch(labels)]
             outputs = [post_pred(i) for i in decollate_batch(outputs)]
             metrics(y_pred=outputs, y=labels)
-        scaler.scale(loss).backward()
+        scaler.scale(loss+reg).backward()
         scaler.step(optimizer)
         scaler.update()
         epoch_loss += loss.item()

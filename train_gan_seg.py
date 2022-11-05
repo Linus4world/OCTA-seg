@@ -10,7 +10,7 @@ from monai.data import decollate_batch
 from monai.utils import set_determinism
 import yaml
 from models.gan_seg_model import GanSegModel
-from models.model import initialize_model, initialize_optimizer
+from models.model import define_model, initialize_model_and_optimizer
 import time
 from tqdm import tqdm
 
@@ -51,15 +51,18 @@ post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]
 # import warnings
 # warnings.filterwarnings('error', category=RuntimeWarning)
 
-model: GanSegModel = initialize_model(config)
+model: GanSegModel = define_model(config, phase = "train")
 
 with torch.no_grad():
     batch = next(iter(train_loader))
     inputs = (batch["real_A"].to(device=device, dtype=torch.float32), batch["real_B"].to(device=device, dtype=torch.float32))
     model.forward(inputs,complete=True)
-    visualizer.save_model_architecture(model, inputs)
+    if task == Task.GAN_VESSEL_SEGMENTATION:
+        visualizer.save_model_architecture(model, inputs[1])
+    else:
+        visualizer.save_model_architecture(model, inputs)
 
-(optimizer_G, optimizer_D, optimizer_S ) = initialize_optimizer(model, config, args)
+(optimizer_G, optimizer_D, optimizer_S ) = initialize_model_and_optimizer(model, config, args)
 
 loss_name_dg = config["Train"]["loss_dg"]
 loss_name_s = config["Train"]["loss_s"]

@@ -8,7 +8,7 @@ import numpy as np
 from monai.data import decollate_batch
 from monai.utils import set_determinism
 import yaml
-from models.model import initialize_model, initialize_optimizer
+from models.model import define_model, initialize_model_and_optimizer
 
 from image_dataset import get_dataset, get_post_transformation
 from utils.masks_to_nii import masks2nii
@@ -37,13 +37,13 @@ set_determinism(seed=0)
 
 task: Task = config["General"]["task"]
 
-test_loader = get_dataset(config, 'test')
+test_loader = get_dataset(config, "test")
 post_pred, _ = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
 device = torch.device(config["General"]["device"])
 
-model = initialize_model(config)
-_ = initialize_optimizer(model, config, args, load_best=True, phase="test")
+model = define_model(config, phase="test")
+_ = initialize_model_and_optimizer(model, config, args, load_best=True, phase="test")
 predictions = []
 
 model.eval()
@@ -57,16 +57,16 @@ with torch.no_grad():
         val_outputs = model(val_inputs)
         val_outputs = [post_pred(i).cpu() for i in decollate_batch(val_outputs)]
 
-        if task == Task.VESSEL_SEGMENTATION:
+        if task == Task.VESSEL_SEGMENTATION or task == Task.GAN_VESSEL_SEGMENTATION:
             # clean_seg = extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)
             # graph_file = os.path.join(config["Test"]["save_dir"], f'sample_{num_sample}_graph.json')
             # graph_img = graph_file_to_img(graph_file, val_outputs[0].shape[-2:])
             
-            # plot_sample(config["Test"]["save_dir"], val_inputs[0], val_outputs[0], None, test_data["path"][0], suffix=f"{num_sample}", full_size=True)
+            plot_sample(config["Test"]["save_dir"]+epoch_suffix, val_inputs[0], val_outputs[0], None, test_data["path"][0], suffix=f"{num_sample}", full_size=True)
             
-            plot_single_image(config["Test"]["save_dir"], val_inputs[0], test_data["path"][0].split("/")[-1])
-            plot_single_image(config["Test"]["save_dir"], val_outputs[0], "segmentation_" + test_data["path"][0].split("/")[-1])
-            _ = extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)
+            plot_single_image(config["Test"]["save_dir"]+epoch_suffix, val_inputs[0], test_data["path"][0].split("/")[-1])
+            plot_single_image(config["Test"]["save_dir"]+epoch_suffix, val_outputs[0], "segmentation_" + test_data["path"][0].split("/")[-1])
+            # _ = extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)
         elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
             plot_single_image(config["Test"]["save_dir"]+epoch_suffix, val_outputs[0], test_data["path"][0].split("/")[-1])
         elif task == Task.AREA_SEGMENTATION:

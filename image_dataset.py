@@ -170,10 +170,7 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
     task = config["General"]["task"]
     transform = _get_transformation(config, task, phase, dtype=torch.float16 if config["General"]["amp"] else torch.float32)
 
-    if phase == "test":
-        data_path = config["Test"]["dataset_images"]
-    else:
-        data_path = config["Data"]["dataset_images"]
+    data_path = config[phase.capitalize()]["dataset_images"]
 
     if "dataset_path" in config[phase.capitalize()]:
         with open(config[phase.capitalize()]["dataset_path"], 'r') as f:
@@ -186,27 +183,30 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
     image_paths = array(image_paths)[indices].tolist()
 
     if task == Task.VESSEL_SEGMENTATION:
-        if phase != "test" and "dataset_labels" in config["Data"]:
-            label_paths = get_custom_file_paths(*config["Data"]["dataset_labels"])
+        if phase != "test" and "dataset_labels" in config[phase.capitalize()]:
+            label_paths = get_custom_file_paths(*config[phase.capitalize()]["dataset_labels"])
             label_paths = array(label_paths)[indices].tolist()
             train_files = [{"image": path, "label":l_path, "path": path} for path, l_path in zip(image_paths, label_paths)]
         else:
             train_files = [{"image": path, "path": path} for path in image_paths]
     elif task == Task.GAN_VESSEL_SEGMENTATION:
         if phase != "test":
-            A_paths = get_custom_file_paths(*config["Data"]["synthetic_images"])
+            A_paths = get_custom_file_paths(*config[phase.capitalize()]["synthetic_images"])
+            A_seg_paths = get_custom_file_paths(*config[phase.capitalize()]["segmentation_images"])
         else:
             A_paths = None
-        data_set = UnalignedZipDataset(A_paths, image_paths, transform)
+            A_seg_paths = None
+        
+        data_set = UnalignedZipDataset(A_paths, image_paths, A_seg_paths, transform, phase)
         loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
         return loader
     elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
         if phase != "test":
-            A_paths = get_custom_file_paths(*config["Data"]["synthetic_images"])
+            A_paths = get_custom_file_paths(*config[phase.capitalize()]["synthetic_images"])
         else:
             A_paths = image_paths
             image_paths = None
-        data_set = UnalignedZipDataset(A_paths, image_paths, transform, phase)
+        data_set = UnalignedZipDataset(A_paths, image_paths, None, transform, phase)
         loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
         return loader
     elif task == Task.RETINOPATHY_CLASSIFICATION or task == Task.IMAGE_QUALITY_CLASSIFICATION:

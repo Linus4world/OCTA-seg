@@ -36,10 +36,11 @@ Train:
     - label
     minv: 0
     maxv: 1
-  - name: AddChanneld
+  - name: EnsureChannelFirstd
     keys:
     - image
     - label
+    strict_check: false
   - name: Rotate90d
     keys:
     - image
@@ -121,10 +122,11 @@ Validation:
     - label
     minv: 0
     maxv: 1
-  - name: AddChanneld
+  - name: EnsureChannelFirstd
     keys:
     - image
     - label
+    strict_check: false
   - name: Rotate90d
     keys:
     - image
@@ -186,9 +188,10 @@ Test:
     - image
     minv: 0
     maxv: 1
-  - name: AddChanneld
+  - name: EnsureChannelFirstd
     keys:
     - image
+    strict_check: false
   - name: Resized
     keys:
     - image

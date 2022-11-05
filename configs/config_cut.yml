@@ -45,10 +45,11 @@ Train:
     - real_B
     minv: 0
     maxv: 1
-  - name: AddChanneld
+  - name: EnsureChannelFirstd
     keys:
     - real_A
     - real_B
+    strict_check: false
   - name: RandFlipd
     keys:
     - real_A
@@ -116,9 +117,10 @@ Test:
     - image
     minv: 0
     maxv: 1
-  - name: AddChanneld
+  - name: EnsureChannelFirstd
     keys:
     - image
+    strict_check: false
   - name: Resized
     keys:
     - image

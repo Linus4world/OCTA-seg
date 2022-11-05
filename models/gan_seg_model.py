@@ -12,9 +12,12 @@ class GanSegModel(nn.Module):
         self.inference = False
 
     def eval(self):
-        self.generator.eval()
-        self.discriminator.eval()
-        self.segmentor.eval()
+        if self.generator is not None:
+            self.generator.eval()
+        if self.discriminator is not None:
+            self.discriminator.eval()
+        if self.segmentor is not None:
+            self.segmentor.eval()
 
     def train(self, *params):
         self.generator.train()
@@ -22,13 +25,15 @@ class GanSegModel(nn.Module):
         self.segmentor.train()
 
     def forward(self, input, _=None, complete=False):
-        if not isinstance(input, tuple):
-            input = input, _
-        real_A, real_B = input
-        fake_B, idt_B, pred_fake_B, pred_real_B = self.forward_GD(input)
         if complete:
+            if not isinstance(input, tuple):
+                input = input, _
+            real_A, real_B = input
+            fake_B, idt_B, pred_fake_B, pred_real_B = self.forward_GD(input)
             pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg = self.forward_GS(real_B, fake_B, idt_B)
-        return fake_B
+        else:
+            fake_B_seg = self.segmentor(input)
+        return fake_B_seg
 
 
     def forward_GD(self, input: tuple[torch.Tensor]) -> tuple[torch.Tensor]:
