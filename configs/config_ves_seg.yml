@@ -7,42 +7,56 @@ General:
   task: ves-seg
   model: DynUNet
 Data:
-  dataset_images:
-  # - "/home/lkreitner/OCTA-CUT/results/OCTA_3x3_31-09-22/test_100/images/fake_B/"
-  # - z.png
-  # - "/home/lkreitner/OCTA-CUT/results/OCTA_3x3_11-10-22/test_300/images/fake_B"
-  # - .png
-  - /home/lkreitner/OCTA-seg/results/cut/20221021_224019/test_150
-  - .png
-  dataset_labels:
-  - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_00135"
-  # - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_OLD"
-  - .png
   num_classes: 1
   class_balance:
   - 1
 Train:
-  dataset_path: "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train.txt"
+  data:
+    image:
+      # - "/home/lkreitner/OCTA-CUT/results/OCTA_3x3_31-09-22/test_100/images/fake_B/"
+      # - z.png
+      # - "/home/lkreitner/OCTA-CUT/results/OCTA_3x3_11-10-22/test_300/images/fake_B"
+      # - .png
+      # - /home/lkreitner/OCTA-seg/results/cut/20221021_224019/test_150
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0008_304x304
+      suffix: .png
+      split: /home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train.txt
+    label:
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0008
+    # - /home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_00135
+    # - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_OLD"
+      suffix: .png
+      split: /home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train.txt
+    deep:
+      folder: /home/lkreitner/OCTA-seg/datasets/deep_11_11_22
+    # - /home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_00135
+    # - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_OLD"
+      suffix: .png
+      
   epochs: 60
   epochs_decay: 0
   val_interval: 1
   batch_size: 4
   lr: 0.0001
   loss: DiceBCELoss
+  AT: true
   data_augmentation:
   - name: LoadImaged
     keys:
+    - deep
     - image
     - label
     image_only: true
   - name: ScaleIntensityd
     keys:
+    - deep
     - image
     - label
     minv: 0
     maxv: 1
   - name: EnsureChannelFirstd
     keys:
+    - deep
     - image
     - label
     strict_check: false
@@ -57,6 +71,7 @@ Train:
     keys:
     - image
     - label
+    - deep
     prob: 0.5
     spatial_axis:
     - 0
@@ -65,11 +80,13 @@ Train:
     keys:
     - image
     - label
+    - deep
     prob: 0.75
   - name: RandRotated
     keys:
     - image
     - label
+    - deep
     prob: 1
     range_x: 0.17453292519943295
     padding_mode: zeros
@@ -78,13 +95,13 @@ Train:
     - image
     minv: 0
     maxv: 1
-  - name: RandAdjustContrastd
-    keys:
-    - image
-    prob: 1
-    gamma:
-    - 0.5
-    - 2.5
+  # - name: RandAdjustContrastd
+  #   keys:
+  #   - image
+  #   prob: 1
+  #   gamma:
+  #   - 0.5
+  #   - 2.5
   - name: AsDiscreted
     keys:
     - label
@@ -93,10 +110,17 @@ Train:
     keys:
     - image
     - label
+    - deep
     dtype: dtype
 Validation:
   batch_size: 4
-  dataset_path: "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/val.txt"
+  data:
+    image:
+      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images
+      suffix: .png
+    label:
+      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/segmented_images
+      suffix: .png
   data_augmentation:
   - name: LoadImaged
     keys:
@@ -119,8 +143,10 @@ Validation:
     - image
     - label
     shape:
-    - 1216
-    - 1216
+    - 368
+    - 368
+    # - 1216
+    # - 1216
   - name: Rotate90d
     keys:
     - image
@@ -142,13 +168,12 @@ Validation:
     dtype: dtype
 Test:
   batch_size: 1
-  dataset_images:
-  # - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainB"
-  # - ".bmp"
-  - /home/lkreitner/OCTA-seg/datasets/Munich_OCTA
-  - .png
-  # dataset_path: "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/train.txt"
-  dataset_path: /home/lkreitner/OCTA-seg/datasets/Munich_OCTA/test.txt
+  data:
+    image:
+      folder: /home/lkreitner/OCTA-seg/datasets/Munich_OCTA
+      # folder: /home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainB
+      suffix: .png
+      # suffix: .bmp
   num_samples: 10
   save_images: false
   data_augmentation:

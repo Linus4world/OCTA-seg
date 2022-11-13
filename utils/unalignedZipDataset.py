@@ -3,8 +3,11 @@ from monai.transforms import Compose
 import random
 
 class UnalignedZipDataset(Dataset):
-    def __init__(self, A_paths: list[str], B_paths: list[str], A_seg_paths: list[str], transform: Compose, phase = "train") -> None:
+    def __init__(self, data: dict, transform: Compose, phase = "train") -> None:
         super().__init__()
+        A_paths = data.get("real_A")
+        A_seg_paths = data.get("real_A_seg")
+        B_paths = data.get("real_B")
         self.A_paths = A_paths
         self.B_paths = B_paths
         self.A_seg_paths = A_seg_paths

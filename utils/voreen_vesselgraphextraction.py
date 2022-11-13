@@ -16,7 +16,7 @@ def extract_vessel_graph(volume_path: str, outdir: str, tempdir: str, cachedir:s
     bulge_size_identifier = bulge_size_identifier.replace('.','_')
     edge_path = f'{outdir}{name}_edges.csv'
     node_path = f'{outdir}{name}_nodes.csv'
-    graph_path = f'{outdir}{name}_graph.json'
+    # graph_path = f'{outdir}{name}_graph.json'
 
     # create temp directory
     temp_directory = os.path.join(tempdir,datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S"))
@@ -35,7 +35,7 @@ def extract_vessel_graph(volume_path: str, outdir: str, tempdir: str, cachedir:s
     filedata = filedata.replace("volume.nii", volume_path)
     filedata = filedata.replace("nodes.csv", node_path)
     filedata = filedata.replace("edges.csv", edge_path)
-    filedata = filedata.replace("graph.vvg", graph_path)
+    # filedata = filedata.replace("graph.vvg", graph_path)
     filedata = filedata.replace('<Property mapKey="minBulgeSize" name="minBulgeSize" value="3" />', bulge_path)
     filedata = filedata.replace("input.nii", volume_path)
     filedata = filedata.replace("output.h5", out_path)

@@ -55,19 +55,21 @@ def define_model(config: dict, phase: Literal["train", "val", "test"]) -> tuple[
             input_channels=sum([True, config["Data"]["use_segmentation"], config["Data"]["use_background"]])
         model = MODEL_DICT[model_name](num_classes=num_classes, input_channels=input_channels).to(device)
     elif task == Task.GAN_VESSEL_SEGMENTATION:
-        segmentor=MODEL_DICT[config["General"]["model_s"]](
-            spatial_dims=2,
-            in_channels=1,
-            out_channels=1,
-            kernel_size=(3, *[kernel_size]*num_layers,3),
-            strides=(1,*[2]*num_layers,1),
-            upsample_kernel_size=(1,*[2]*num_layers,1)
-        ).to(device)
-        if phase == "test":
-            discriminator = None
-            generator = None
-        else:
+        segmentor = None
+        discriminator = None
+        generator = None
+        if phase != "test" or config["Test"]["inference"] == "S":
+            segmentor=MODEL_DICT[config["General"]["model_s"]](
+                spatial_dims=2,
+                in_channels=1,
+                out_channels=1,
+                kernel_size=(3, *[kernel_size]*num_layers,3),
+                strides=(1,*[2]*num_layers,1),
+                upsample_kernel_size=(1,*[2]*num_layers,1)
+            ).to(device)
+        if phase != "test" or config["Test"]["inference"] == "G":
             generator = MODEL_DICT[config["General"]["model_g"]]().to(device)
+        if phase != "test":
             discriminator=MODEL_DICT[config["General"]["model_d"]]().to(device)
 
         model = GanSegModel(
@@ -128,8 +130,12 @@ def initialize_model_and_optimizer(model: torch.nn.Module, config: dict, args, l
             model.generator.load_state_dict(checkpoint_G['model'])
         else:
             epoch_prefix = f"{args.epoch}_" if args.epoch is not None else "" 
-            checkpoint_S = torch.load(model_path.replace('best_model', epoch_prefix+'latest_S_model'))
-            model.segmentor.load_state_dict(checkpoint_S['model'])
+            checkpoint = torch.load(model_path.replace('best_model', epoch_prefix+f'latest_{config["Test"]["inference"]}_model'))
+            if config["Test"]["inference"] == "S":
+                model.segmentor.load_state_dict(checkpoint['model'])
+            elif config["Test"]["inference"] == "G":
+                model.generator.load_state_dict(checkpoint['model'])
+            else: raise NotImplementedError
         return None
 
     if hasattr(args, "start_epoch") and args.start_epoch>0:

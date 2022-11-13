@@ -14,10 +14,19 @@ Data:
   class_balance:
   - 1
 Train:
-  # dataset_path: "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/train.txt"
-  epochs: 300
-  epochs_decay: 100
-  save_interval: 50
+  data:
+    real_B:
+      folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500_healthy
+      suffix: .bmp
+    real_A:
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0008_304x304
+      suffix: .png
+    real_A_seg:
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0008
+      suffix: .png
+  epochs: 250
+  epochs_decay: 50
+  save_interval: 25
   batch_size: 4
   lr: 0.0002
   loss_dg: LSGANLoss
@@ -68,13 +77,13 @@ Train:
     prob: 1
     range_x: 0.17453292519943295
     padding_mode: zeros
-  # - name: RandCropOrPadd
+  # - name: Resized
   #   keys:
   #   - real_A
   #   - real_B
-    # prob: 1
-    # min_factor: 0.25
-    # max_factor: 0.25
+  #   shape:
+  #   - 1216
+  #   - 1216
   - name: ScaleIntensityd
     keys:
     - real_A
@@ -82,6 +91,14 @@ Train:
     - real_A_seg
     minv: 0
     maxv: 1
+  # - name: RandCropOrPadd
+  #   keys:
+  #   - real_A
+  #   - real_B
+  #   - real_A_seg
+  #   prob: 1
+  #   min_factor: 0.25
+  #   max_factor: 0.25
   # - name: SplitImageLabeld
   #   keys:
   #   - real_A
@@ -90,12 +107,6 @@ Train:
     keys:
     - real_A_seg
     threshold: 0.1
-  - name: Resized
-    keys:
-    - real_A
-    shape:
-    - 304
-    - 304
   - name: AddRandomGaussianNoiseChanneld
     keys:
     - real_A
@@ -107,15 +118,16 @@ Train:
     dtype: dtype
 Validation:
   batch_size: 4
-  dataset_path: "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/val.txt"
 Test:
   batch_size: 1
-  dataset_images:
-  - /home/lkreitner/OCTA-seg/datasets/Munich_OCTA
-  - .png
+  data:
+    real_B:
+      folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500
+      suffix: .bmp
   # dataset_path: "/home/lkreitner/OCTA-seg/datasets/DRAC_C/val_0.txt"
   num_samples: 5
   save_images: false
+  inference: S
   data_augmentation:
   - name: LoadImaged
     keys:

@@ -38,7 +38,7 @@ set_determinism(seed=0)
 task: Task = config["General"]["task"]
 
 test_loader = get_dataset(config, "test")
-post_pred, _ = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
+post_pred, _ = get_post_transformation(config, "test", task, num_classes=config["Data"]["num_classes"])
 
 device = torch.device(config["General"]["device"])
 

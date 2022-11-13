@@ -4,6 +4,7 @@ import os
 from numpy import array, deg2rad
 import csv
 import torch
+import numpy as np
 
 from monai.data.meta_obj import set_track_meta
 
@@ -29,6 +30,7 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
         aug_config = config[phase.capitalize()]["data_augmentation"]
         return Compose(get_data_augmentations(aug_config, dtype))
     elif task == Task.RETINOPATHY_CLASSIFICATION:
+        # TODO
         if phase == "train":
             return Compose([
                 LoadImaged(keys=["image", "segmentation"], image_only=True, allow_missing_keys=True),
@@ -68,6 +70,7 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 CastToTyped(keys=["image"], dtype=[dtype])
             ])
     elif task == Task.IMAGE_QUALITY_CLASSIFICATION:
+        # TODO
         if phase == "train":
             return Compose([
                 LoadImaged(keys=["image","segmentation"], image_only=True, allow_missing_keys=True),
@@ -107,6 +110,7 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 CastToTyped(keys=["image"], dtype=[dtype])
             ])
     elif task == Task.AREA_SEGMENTATION:
+        # TODO
         if phase == "train":
             return Compose([
                 LoadImaged(keys=["image","segmentation", "label"], image_only=True, allow_missing_keys=True),
@@ -145,14 +149,17 @@ def _get_transformation(config, task: Task, phase: str, dtype=torch.float32) -> 
                 CastToTyped(keys=["image", "label"], dtype=[dtype, torch.int64])
             ])
 
-def get_post_transformation(task: Task, num_classes=2) -> tuple[Compose]:
+def get_post_transformation(config: dict, phase: str, task: Task, num_classes=2) -> tuple[Compose]:
     """
     Create and return the data transformation that is applied to the model prediction before inference.
     """
     if task == Task.VESSEL_SEGMENTATION:
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), RemoveSmallObjects(396)]), Compose([CastToType(dtype=torch.uint8)])
     elif task == Task.GAN_VESSEL_SEGMENTATION:
-        return Compose([AsDiscrete(threshold=0.5), RemoveSmallObjects(396)]), Compose()
+        if phase != "test" or config["Test"]["inference"] == "S":
+            return Compose([AsDiscrete(threshold=0.5), RemoveSmallObjects(396)]), Compose()
+        else:
+            return Compose(), Compose()
     elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
          return Compose(), Compose()
     elif task == task == Task.AREA_SEGMENTATION:
@@ -170,37 +177,30 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
     task = config["General"]["task"]
     transform = _get_transformation(config, task, phase, dtype=torch.float16 if config["General"]["amp"] else torch.float32)
 
-    data_path = config[phase.capitalize()]["dataset_images"]
-
-    if "dataset_path" in config[phase.capitalize()]:
-        with open(config[phase.capitalize()]["dataset_path"], 'r') as f:
-            lines = f.readlines()
-            indices = [int(line.rstrip()) for line in lines]
-    else:
-        indices = slice(None, None)
-
-    image_paths = get_custom_file_paths(*data_path)
-    image_paths = array(image_paths)[indices].tolist()
+    data_settings: dict = config[phase.capitalize()]["data"]
+    data = dict()
+    for key, val in data_settings.items():
+        paths  = get_custom_file_paths(val["folder"], val["suffix"])
+        if "split" in val:
+            with open(val["split"], 'r') as f:
+                lines = f.readlines()
+                indices = [int(line.rstrip()) for line in lines]
+                paths = array(paths)[indices].tolist()
+        data[key] = paths
+        data[key+"_path"] = paths
 
     if task == Task.VESSEL_SEGMENTATION:
-        if phase != "test" and "dataset_labels" in config[phase.capitalize()]:
-            label_paths = get_custom_file_paths(*config[phase.capitalize()]["dataset_labels"])
-            label_paths = array(label_paths)[indices].tolist()
-            train_files = [{"image": path, "label":l_path, "path": path} for path, l_path in zip(image_paths, label_paths)]
-        else:
-            train_files = [{"image": path, "path": path} for path in image_paths]
+        max_length = max([len(l) for l in data.values()])
+        for k,v in data.items():
+            data[k] = np.resize(np.array(v), max_length).tolist()
+        # TODO: Test this
+        train_files = [dict(zip(data, t)) for t in zip(*data.values())]
     elif task == Task.GAN_VESSEL_SEGMENTATION:
-        if phase != "test":
-            A_paths = get_custom_file_paths(*config[phase.capitalize()]["synthetic_images"])
-            A_seg_paths = get_custom_file_paths(*config[phase.capitalize()]["segmentation_images"])
-        else:
-            A_paths = None
-            A_seg_paths = None
-        
-        data_set = UnalignedZipDataset(A_paths, image_paths, A_seg_paths, transform, phase)
+        data_set = UnalignedZipDataset(data, transform, phase)
         loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
         return loader
     elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
+        # TODO
         if phase != "test":
             A_paths = get_custom_file_paths(*config[phase.capitalize()]["synthetic_images"])
         else:
@@ -210,6 +210,7 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
         loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
         return loader
     elif task == Task.RETINOPATHY_CLASSIFICATION or task == Task.IMAGE_QUALITY_CLASSIFICATION:
+        # TODO
         if config["Data"]["use_segmentation"] or config["Data"]["enhance_vessels"]:
             seg_paths = config["Test"]["dataset_segmentations"] if phase == "test" else config["Data"]["dataset_segmentations"]
             seg_paths = get_custom_file_paths(*seg_paths)
@@ -227,6 +228,7 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
         else:
             train_files = [{"image": img, "path": img} for img in image_paths]
     elif task == Task.AREA_SEGMENTATION:
+        # TODO
         if config["Data"]["use_segmentation"] or config["Data"]["enhance_vessels"]:
             seg_paths = config["Test"]["dataset_segmentations"] if phase == "test" else config["Data"]["dataset_segmentations"]
             seg_paths = get_custom_file_paths(*seg_paths)

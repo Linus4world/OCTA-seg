@@ -14,7 +14,7 @@ Data:
   - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainB"
   - ".bmp"
   synthetic_images:
-  - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA"
+  - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_OLD"
   - ".png"
   num_classes: 1
   class_balance:
@@ -29,7 +29,7 @@ Train:
   loss_dg: LSGANLoss
   loss_s: NCELoss
   lambda_cl_dice: 0
-  compute_identity: false
+  compute_identity: true
   compute_identity_seg: true
   lambda_NCE: 10.0
   nce_layers: [4,8,12,16,20]

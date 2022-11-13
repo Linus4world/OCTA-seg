@@ -31,15 +31,18 @@ class GanSegModel(nn.Module):
             real_A, real_B = input
             fake_B, idt_B, pred_fake_B, pred_real_B = self.forward_GD(input)
             pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg = self.forward_GS(real_B, fake_B, idt_B)
+            return fake_B_seg
         else:
-            fake_B_seg = self.segmentor(input)
-        return fake_B_seg
+            if self.segmentor is not None:
+                return self.segmentor(input)
+            else:
+                return self.generator(input)
 
 
     def forward_GD(self, input: tuple[torch.Tensor]) -> tuple[torch.Tensor]:
         real_A, real_B = input
         fake_B = self.generator(real_A)
-        if self.compute_identity_seg:
+        if self.compute_identity_seg or self.compute_identity:
             idt_B = self.generator(torch.cat((real_B, real_A[:,0:1]), dim=1))
         else:
             idt_B = [None]

@@ -52,9 +52,9 @@ train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')
 test_loader = get_dataset(config, 'test')
 test_loader_iter = iter(test_loader)
-post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
+post_pred, post_label = get_post_transformation(config, "train", task, num_classes=config["Data"]["num_classes"])
 
-model = define_model(config)
+model = define_model(config, "train")
 
 with torch.no_grad():
     inputs = next(iter(train_loader))["image"].to(device=device, dtype=torch.float32)
@@ -98,11 +98,12 @@ for epoch in epoch_tqdm:
         )
         optimizer.zero_grad()
         if config["Train"]["AT"]:
-            inputs, reg = at(model, inputs, labels)
+            inputs_at, reg = at(model, inputs, batch_data["deep"].to(device), labels)
+            inputs = torch.cat((inputs_at, inputs), dim=0)
+            labels = torch.tile(labels, (2,1,1,1))
         else:
             reg=0
         with torch.cuda.amp.autocast():
-
             outputs = model(inputs)
             if config["Data"]["num_classes"]==1:
                 outputs=outputs.squeeze(-1)
@@ -177,7 +178,7 @@ for epoch in epoch_tqdm:
                 val_inputs = test_data["image"].to(device).float()
                 val_outputs = model(val_inputs)
                 val_outputs = [post_pred(i).cpu() for i in decollate_batch(val_outputs)]
-                plot_sample(visualizer.save_dir, val_inputs[0], val_outputs[0], None, test_data["path"][0], suffix="test", full_size=True)
+                plot_sample(visualizer.save_dir, val_inputs[0], val_outputs[0], None, test_data["image_path"][0], suffix="test", full_size=True)
     visualizer.log_model_params(model, epoch)
 
 total_time = time.time() - total_start
