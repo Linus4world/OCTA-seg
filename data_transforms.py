@@ -36,7 +36,7 @@ class AddRandomGaussianNoiseChanneld(MapTransform):
                 img = data[key]
                 noise = data["deep"] if "deep" in data else torch.rand_like(img)
                 # img = torch.cat((img, noise), dim=0)
-                img = img + noise
+                img = torch.maximum(img, noise)
                 data[key] = img
         if "deep" in data:
             del data["deep"]
