@@ -32,10 +32,14 @@ class AddRandomGaussianNoiseChanneld(MapTransform):
 
     def __call__(self, data):
         for key in self.keys:
-            img = data[key]
-            noise = torch.sigmoid(torch.rand_like(img))
-            img = torch.cat((img, noise), dim=0)
-            data[key] = img
+            if key in data:
+                img = data[key]
+                noise = data["deep"] if "deep" in data else torch.rand_like(img)
+                # img = torch.cat((img, noise), dim=0)
+                img = img + noise
+                data[key] = img
+        if "deep" in data:
+            del data["deep"]
         return data
 
 class AsOneHot():

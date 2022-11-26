@@ -417,7 +417,7 @@ class ANTLoss(torch.nn.Module):
         self.noise_model = NoiseModel(
             grid_size = grid_size,
             lambda_delta = 1,
-            lambda_speckle = 0.4,
+            lambda_speckle = 0.7,
             lambda_gamma = 0.3,
             alpha=0.2
         )
@@ -428,7 +428,7 @@ class ANTLoss(torch.nn.Module):
         model.eval()
         adv_sample = self.noise_model.forward(x, deep, False)
         loss_trajectory = []
-        for i in range(10):
+        for i in range(3):
             with torch.cuda.amp.autocast():
                 pred = model(adv_sample)
                 loss: torch.Tensor = self.loss_fun(pred, y)

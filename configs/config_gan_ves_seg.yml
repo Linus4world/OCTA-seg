@@ -19,13 +19,16 @@ Train:
       folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500_healthy
       suffix: .bmp
     real_A:
-      folder: /home/lkreitner/OCTA-seg/datasets/synth_0008_304x304
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0008_304x304_MIP
       suffix: .png
     real_A_seg:
       folder: /home/lkreitner/OCTA-seg/datasets/synth_0008
       suffix: .png
-  epochs: 250
-  epochs_decay: 50
+    deep:
+      folder: /home/lkreitner/OCTA-seg/datasets/deep_11_11_22
+      suffix: .png
+  epochs: 150
+  epochs_decay: 0
   save_interval: 25
   batch_size: 4
   lr: 0.0002
@@ -40,12 +43,14 @@ Train:
     - real_A
     - real_B
     - real_A_seg
+    - deep
     image_only: true
   - name: ScaleIntensityd
     keys:
     - real_A
     - real_B
     - real_A_seg
+    - deep
     minv: 0
     maxv: 1
   - name: EnsureChannelFirstd
@@ -53,12 +58,14 @@ Train:
     - real_A
     - real_B
     - real_A_seg
+    - deep
     strict_check: false
   - name: RandFlipd
     keys:
     - real_A
     - real_B
     - real_A_seg
+    - deep
     prob: 0.5
     spatial_axis:
     - 0
@@ -68,22 +75,17 @@ Train:
     - real_A
     - real_B
     - real_A_seg
+    - deep
     prob: 0.75
   - name: RandRotated
     keys:
     - real_A
     - real_B
     - real_A_seg
+    - deep
     prob: 1
     range_x: 0.17453292519943295
     padding_mode: zeros
-  # - name: Resized
-  #   keys:
-  #   - real_A
-  #   - real_B
-  #   shape:
-  #   - 1216
-  #   - 1216
   - name: ScaleIntensityd
     keys:
     - real_A
@@ -91,18 +93,6 @@ Train:
     - real_A_seg
     minv: 0
     maxv: 1
-  # - name: RandCropOrPadd
-  #   keys:
-  #   - real_A
-  #   - real_B
-  #   - real_A_seg
-  #   prob: 1
-  #   min_factor: 0.25
-  #   max_factor: 0.25
-  # - name: SplitImageLabeld
-  #   keys:
-  #   - real_A
-  #   - real_A_seg
   - name: AsDiscreted
     keys:
     - real_A_seg
@@ -122,44 +112,94 @@ Test:
   batch_size: 1
   data:
     real_B:
-      folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500
+      folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3
       suffix: .bmp
-  # dataset_path: "/home/lkreitner/OCTA-seg/datasets/DRAC_C/val_0.txt"
+    real_A:
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0008_304x304
+      suffix: .png
+    deep:
+      folder: /home/lkreitner/OCTA-seg/datasets/deep_11_11_22
+      suffix: .png
   num_samples: 5
   save_images: false
   inference: S
   data_augmentation:
   - name: LoadImaged
     keys:
-    - image
+    - real_A
+    - real_B
+    - real_A_seg
+    - deep
+    allow_missing_keys: true
     image_only: true
   - name: ScaleIntensityd
     keys:
-    - image
+    - real_A
+    - real_B
+    - real_A_seg
+    - deep
+    allow_missing_keys: true
     minv: 0
     maxv: 1
   - name: EnsureChannelFirstd
     keys:
-    - image
+    - real_A
+    - real_B
+    - real_A_seg
+    - deep
+    allow_missing_keys: true
     strict_check: false
-  - name: Resized
+  - name: RandFlipd
     keys:
-    - image
-    - label
-    shape:
-    - 1216
-    - 1216
-  - name: Rotate90d
+    - real_A
+    - real_B
+    - real_A_seg
+    - deep
+    allow_missing_keys: true
+    prob: 0.5
+    spatial_axis:
+    - 0
+    - 1
+  - name: RandRotate90d
     keys:
-    - image
-    k: 1
-  - name: Flipd
+    - real_A
+    - real_B
+    - real_A_seg
+    - deep
+    allow_missing_keys: true
+    prob: 0.75
+  - name: RandRotated
     keys:
-    - image
-    spatial_axis: 0
+    - real_A
+    - real_B
+    - real_A_seg
+    - deep
+    allow_missing_keys: true
+    prob: 1
+    range_x: 0.17453292519943295
+    padding_mode: zeros
+  - name: ScaleIntensityd
+    keys:
+    - real_A
+    - real_B
+    - real_A_seg
+    allow_missing_keys: true
+    minv: 0
+    maxv: 1
+  - name: AsDiscreted
+    keys:
+    - real_A_seg
+    allow_missing_keys: true
+    threshold: 0.1
+  - name: AddRandomGaussianNoiseChanneld
+    keys:
+    - real_A
   - name: CastToTyped
     keys:
-    - image
+    - real_A
+    - real_A_seg
+    - real_B
+    allow_missing_keys: true
     dtype: dtype
 Output:
   save_dir: "/home/lkreitner/OCTA-seg/results/gan-ves-seg"

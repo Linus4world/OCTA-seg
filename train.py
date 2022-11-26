@@ -127,7 +127,7 @@ for epoch in epoch_tqdm:
     epoch_metrics["metric"] = metrics.aggregate_and_reset(prefix="train")
     epoch_tqdm.set_description(f'avg train loss: {epoch_loss:.4f}')
     if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION:
-        visualizer.plot_sample(inputs[0], outputs[0], labels[0], suffix='train')
+        visualizer.plot_sample(inputs[0], outputs[0], labels[0], suffix='train', path=batch_data["image_path"][0])
     else:
         visualizer.plot_clf_sample(inputs, outputs, labels, batch_data["path"], suffix='train')
 

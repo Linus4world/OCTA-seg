@@ -792,7 +792,7 @@ class NLayerDiscriminator(nn.Module):
         return self.model(input)
 
 def resnetGenerator9():
-    return ResnetGenerator(2, 1, ngf=64, norm_layer=get_norm_layer("instance"), n_blocks=9)
+    return ResnetGenerator(1, 1, ngf=64, norm_layer=get_norm_layer("instance"), n_blocks=9)
 
 def patchGAN70x70():
     return NLayerDiscriminator(1, ndf=64, n_layers=3, norm_layer=get_norm_layer("instance"))

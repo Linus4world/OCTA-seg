@@ -185,8 +185,8 @@ for epoch in epoch_tqdm:
             idt_B[0],
             real_B_seg[0],
             (epoch + 1),
-            path_A=batch_data["path_A"][0],
-            path_B=batch_data["path_B"][0],
+            path_A=batch_data["real_A_path"][0],
+            path_B=batch_data["real_B_path"][0],
             save_epoch = (epoch + 1) % save_interval == 0
         )
     else:
@@ -196,8 +196,8 @@ for epoch in epoch_tqdm:
             real_B[0],
             idt_B[0],
             (epoch + 1),
-            path_A=batch_data["path_A"][0],
-            path_B=batch_data["path_B"][0],
+            path_A=batch_data["real_A_path"][0],
+            path_B=batch_data["real_B_path"][0],
             save_epoch = (epoch + 1) % save_interval == 0
         )
 

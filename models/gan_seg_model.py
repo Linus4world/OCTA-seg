@@ -34,7 +34,7 @@ class GanSegModel(nn.Module):
             return fake_B_seg
         else:
             if self.segmentor is not None:
-                return self.segmentor(input)
+                return self.segmentor(torch.nn.functional.interpolate(input, scale_factor=4, mode="bilinear"))
             else:
                 return self.generator(input)
 
@@ -43,7 +43,7 @@ class GanSegModel(nn.Module):
         real_A, real_B = input
         fake_B = self.generator(real_A)
         if self.compute_identity_seg or self.compute_identity:
-            idt_B = self.generator(torch.cat((real_B, real_A[:,0:1]), dim=1))
+            idt_B = self.generator(real_B)
         else:
             idt_B = [None]
         

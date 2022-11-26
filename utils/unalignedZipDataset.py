@@ -8,6 +8,7 @@ class UnalignedZipDataset(Dataset):
         A_paths = data.get("real_A")
         A_seg_paths = data.get("real_A_seg")
         B_paths = data.get("real_B")
+        deep = data.get("deep")
         self.A_paths = A_paths
         self.B_paths = B_paths
         self.A_seg_paths = A_seg_paths
@@ -15,6 +16,8 @@ class UnalignedZipDataset(Dataset):
         self.A_size = 0 if A_paths is None else len(A_paths)
         self.B_size = 0 if B_paths is None else len(B_paths)
         self.A_seg_size = 0 if A_seg_paths is None else len(A_seg_paths)
+        self.deep = deep
+        self.deep_size = 0 if deep is None else len(deep)
         self.phase = phase
 
     def __len__(self) -> int:
@@ -27,26 +30,24 @@ class UnalignedZipDataset(Dataset):
 
     def __getitem__(self, index) -> dict:
         data = dict()
-        if self.phase=="test":
-            if self.A_paths is not None:
-                A_path = self.A_paths[index % self.A_size]
-                return self.transform({"image": A_path, "path": A_path})
-            else:
-                B_path = self.B_paths[index % self.B_size]
-                return self.transform({"image": B_path, "path": B_path})
-
         if self.A_paths is not None:
             A_path = self.A_paths[index % self.A_size]
-            data["path_A"] = A_path
+            data["real_A_path"] = A_path
             data["real_A"] = A_path
         if self.B_paths is not None:
-            B_path = self.B_paths[random.randint(0, self.B_size - 1)]
-            data["path_B"] = B_path
+            if "real_A" in data:
+                index_B = random.randint(0, self.B_size - 1)
+            else:
+                index_B = index
+            B_path = self.B_paths[index_B]
+            data["real_B_path"] = B_path
             data["real_B"] = B_path
         if self.A_seg_paths is not None:
             A_seg_path = self.A_seg_paths[index % self.A_size]
-            data["path_A_seg"] = A_seg_path
+            data["real_A_seg_path"] = A_seg_path
             data["real_A_seg"] = A_seg_path
+        if self.deep is not None:
+            data["deep"] = self.deep[random.randint(0, self.deep_size - 1)]
         data_transformed = self.transform(data)
         return data_transformed
 

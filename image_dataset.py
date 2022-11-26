@@ -157,7 +157,7 @@ def get_post_transformation(config: dict, phase: str, task: Task, num_classes=2)
         return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), RemoveSmallObjects(396)]), Compose([CastToType(dtype=torch.uint8)])
     elif task == Task.GAN_VESSEL_SEGMENTATION:
         if phase != "test" or config["Test"]["inference"] == "S":
-            return Compose([AsDiscrete(threshold=0.5), RemoveSmallObjects(396)]), Compose()
+            return Compose([AsDiscrete(threshold=0.5), RemoveSmallObjects(256)]), Compose()
         else:
             return Compose(), Compose()
     elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
@@ -181,6 +181,7 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
     data = dict()
     for key, val in data_settings.items():
         paths  = get_custom_file_paths(val["folder"], val["suffix"])
+        paths.sort()
         if "split" in val:
             with open(val["split"], 'r') as f:
                 lines = f.readlines()
