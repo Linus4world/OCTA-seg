@@ -1,0 +1,80 @@
+---
+# Configuration for optimal-oriented-flux-filter based vessel segmentation
+General:
+  amp: false
+  device: cpu
+  task: ves-seg
+  model:
+    name: oof
+Validation:
+  batch_size: 1
+  data:
+    image:
+      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images/ # Edinburgh
+      suffix: .png
+
+      # folder: /home/shared/Data/ROSE/ROSE-1/SVC_DVC/train/img/ # ROSE-1
+      # suffix: .png
+
+      # folder: /home/shared/Data/OCTA-500/Labels and projection maps/OCTA_3M/Projection Maps/OCTA(ILM_OPL)/ # OCTA-500
+      # suffix: .bmp
+    label: 
+      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/segmented_images # Edinburgh
+      suffix: .png
+
+      # folder: /home/shared/Data/ROSE/ROSE-1/SVC_DVC/train/gt # ROSE-1
+      # suffix: .tif
+
+      # folder: /home/shared/Data/OCTA-500/Labels and projection maps/OCTA_3M/GroundTruth # OCTA-500
+      # suffix: .bmp
+  save_images: false
+  data_augmentation:
+  - name: LoadImaged
+    keys:
+    - image
+    - label
+    image_only: true
+  - name: ScaleIntensityd
+    keys:
+    - image
+    - label
+    minv: 0
+    maxv: 1
+  - name: EnsureChannelFirstd
+    keys:
+    - image
+    - label
+    strict_check: false
+  - name: Rotate90d
+    keys:
+    - image
+    - label
+    k: 1
+  - name: Flipd
+    keys:
+    - image
+    - label
+    spatial_axis: 0
+  - name: CastToTyped
+    keys:
+    - image
+    - label
+    dtype: dtype
+  post_processing:
+    prediction:
+    - name: AsDiscrete
+      threshold: 0.5 # Edinburgh
+      # threshold: 0.59 # ROSE
+      # threshold: 0.62 # OCTA-500
+    - name: RemoveSmallObjects
+      min_size: 8 # Edinburgh
+      # min_size: 32 # ROSE-1
+      # min_size: 64 # OCTA-500
+    label: null
+Output:
+  save_dir: "/home/lkreitner/OCTA-seg/results/frangi"
+  save_to_disk: true
+  save_to_tensorboard: false
+  save_interval: 1
+    
+

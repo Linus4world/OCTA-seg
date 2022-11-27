@@ -14,6 +14,8 @@ import functools
 import torch.nn.functional as F
 from models.cut import CUT
 from models.gan_seg_model import GanSegModel
+from oof import OOF
+from frangi import Frangi
 
 V = TypeVar("V")
 
@@ -870,5 +872,7 @@ MODEL_DICT: dict[str, Union[ResNet, EfficientNet, DynUNet]] = {
     "resnetGenerator9": resnetGenerator9,
     "patchGAN70x70": patchGAN70x70,
     "CUT": CUT,
-    "PatchSampleF": PatchSampleF
+    "PatchSampleF": PatchSampleF,
+    "oof": OOF,
+    "frangi": Frangi
 }

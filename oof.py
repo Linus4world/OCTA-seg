@@ -1,41 +1,40 @@
-# 2D Optimal Oriented Flux
-# Code based on https://github.com/fepegar/optimally-oriented-flux
-
 import numpy as np
 from numpy.fft import fftn, ifftn
 from scipy.special import jv as besselj
 from tqdm import tqdm
-from PIL import Image
-from monai.transforms import RemoveSmallObjects
 
 EPSILON = 1e-12
 
-
 class OOF:
-    def __init__(self, input_path=None, threshold=0.5, object_size = 8):
+    """
+    2D Optimal Oriented Flux (OOF) filter.
+    Code based on https://github.com/fepegar/optimally-oriented-flux
+    """
+    def __init__(self):
         self.nifti = None
-        self.array = None
         self.radii = None
-        self.threshold = threshold
 
         self.spacing = 1, 1
         self.num_radii = 5
-
-        if input_path is not None:
-            self.array = np.array(Image.open(input_path).convert("L")).astype(np.float32)
-            self.radii = self.get_radii()
+        self.radii = self.get_radii()
 
         self.sigma = min(self.spacing)
 
         self.response_type = 1
         self.use_absolute = True
         self.normalization_type = 1
-        self.removeSmallObjects = RemoveSmallObjects(object_size)
 
-    def get_spacing(self):
-        return self.nifti.header.get_zooms()
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        oof = self.compute_oof(img, self.radii)
+        oof = oof+oof.max()
+        oof = oof / oof.max()
 
-    def get_radii(self):
+    def eval():
+        pass
+    def train():
+        pass
+
+    def get_radii(self) -> np.ndarray:
         return np.arange(1, self.num_radii + 1) * min(self.spacing)
 
     def check_normalization(self, radii):
@@ -45,7 +44,7 @@ class OOF:
                   ' normalization_type = 0 because of the undersize sigma.')
             self.normalization_type = 0
 
-    def compute_oof(self, array, radii):
+    def compute_oof(self, array: np.ndarray, radii: np.ndarray) -> np.ndarray:
         array = array.astype(np.double)
         shape = array.shape
         output = np.zeros(shape)
@@ -123,16 +122,6 @@ class OOF:
             output[stronger_response] = tmpfeature[stronger_response]
         return output
 
-    def run(self, output_path):
-        oof = self.compute_oof(self.array, self.radii)
-        oof = oof+oof.max()
-        oof = oof / oof.max()
-        oof = (oof>self.threshold).astype(np.float32)
-        oof = self.removeSmallObjects(oof)
-        oof = oof*255
-        Image.fromarray(oof.astype(np.uint8)).save(output_path)
-
-
 def get_min_sphere_radius(shape, spacing):
     x, y = ifft_shifted_coordinates_matrix(shape)
     si, sj = shape
@@ -147,7 +136,6 @@ def get_circle_area(radius):
 
 def circle_length(radius):
     return 2 * np.pi * radius
-
 
 def ifft_shifted_coordinates_matrix(shape):
     shape = np.array(shape)
@@ -169,6 +157,27 @@ def ifft_shifted_coordinates_matrix(shape):
     return result
 
 if __name__ == "__main__": 
-    # OOF("/home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images/2.png", 0.5, 8).run("Test.png") # Edinburgh
-    # OOF("/home/shared/Data/ROSE/ROSE-1/SVC_DVC/train/img/06.png", 0.59, 32).run("Test.png") # ROSE
-    OOF("/home/shared/Data/OCTA-500/Labels and projection maps/OCTA_3M/Projection Maps/OCTA(ILM_OPL)/10301.bmp", 0.62, 64).run("Test.png") # OCTA-500
+    from monai.transforms import RemoveSmallObjects
+    from PIL import Image
+
+    # path = "/home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images/2.png"
+    # path = "/home/shared/Data/ROSE/ROSE-1/SVC_DVC/train/img/06.png"
+    path = "/home/shared/Data/OCTA-500/Labels and projection maps/OCTA_3M/Projection Maps/OCTA(ILM_OPL)/10301.bmp"
+    
+    name = path.split("/")[-1].split(".")[0]
+    img = np.array(Image.open(path).convert('L')).astype(np.float32)
+
+    # removeSmallObjects = RemoveSmallObjects(8) # Edinburgh
+    # removeSmallObjects = RemoveSmallObjects(32) # ROSE
+    removeSmallObjects = RemoveSmallObjects(64) # OCTA-500
+
+    oof_img  = OOF()(img)
+
+    threshold = 0.5 # Edinburgh
+    # threshold = 0.59 # ROSE
+    # threshold = 0.62 # OCTA-500
+
+    oof_img = (oof_img>=threshold).astype(np.float32)
+    oof_img = removeSmallObjects(oof_img)
+    oof_img = np.clip(oof_img*255, 0, 255).astype(np.uint8)
+    Image.fromarray(oof_img).save(f"{name}-oof-{threshold}.png")
