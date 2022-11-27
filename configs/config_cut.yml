@@ -5,10 +5,18 @@ General:
   num_layers: 3
   kernel_size: 3
   task: cut
-  model: CUT
-  model_g: resnetGenerator9
-  model_d: patchGAN70x70
-  model_s: PatchSampleF
+  model:
+    name: CUT
+    model_g:
+      name: resnetGenerator9
+    model_d: 
+      name: patchGAN70x70
+    model_s:
+      name: PatchSampleF
+    compute_identity: false
+    compute_identity_seg: true
+    nce_layers: [4,8,12,16,20]
+    inference: G
 Data:
   dataset_images:
   - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainB"
@@ -32,7 +40,6 @@ Train:
   compute_identity: true
   compute_identity_seg: true
   lambda_NCE: 10.0
-  nce_layers: [4,8,12,16,20]
   data_augmentation:
   - name: LoadImaged
     keys:
@@ -97,6 +104,9 @@ Train:
     - real_A
     - real_B
     dtype: dtype
+  post_processing:
+    prediction: null
+    label: null
 Validation:
   batch_size: 4
   dataset_path: "/home/lkreitner/OCTA-seg/datasets/synth_24_07_22/val.txt"
@@ -147,16 +157,11 @@ Test:
     keys:
     - image
     dtype: dtype
+  post_processing:
+    prediction: null
+    label: null
 Output:
   save_dir: /home/lkreitner/OCTA-seg/results/cut
   save_to_disk: true
   save_to_tensorboard: true
   save_interval: 1
-Voreen":
-  image_file: ""
-  voreen_tool_path: /home/shared/Software/Voreen-source/bin/
-  workspace_file: /home/lkreitner/OCTA-seg/voreen/feature-vesselgraphextraction_customized_command_line.vws
-  outdir: /home/lkreitner/OCTA-seg/voreen/workdir/
-  tempdir: /home/lkreitner/OCTA-seg/voreen/tmpdir/
-  cachedir: /home/lkreitner/OCTA-seg/voreen/cachedir/
-  bulge_size: 1.5

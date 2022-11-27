@@ -225,3 +225,11 @@ Output:
   save_to_disk: true
   save_to_tensorboard: true
   save_interval: 1
+Voreen:
+  image_file: ""
+  voreen_tool_path: /home/shared/Software/Voreen-source/bin/
+  workspace_file: /home/lkreitner/OCTA-seg/voreen/feature-vesselgraphextraction_customized_command_line.vws
+  outdir: /home/lkreitner/OCTA-seg/voreen/workdir/
+  tempdir: /home/lkreitner/OCTA-seg/voreen/tmpdir/
+  cachedir: /home/lkreitner/OCTA-seg/voreen/cachedir/
+  bulge_size: 1.5

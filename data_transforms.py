@@ -444,14 +444,14 @@ def get_data_augmentations(aug_config: list[dict], dtype=torch.float32) -> list:
     augs = []
     for aug_d in aug_config:
         aug_d = dict(aug_d)
-        aug_name = aug_d.pop("name")
+        aug_name: str = aug_d.pop("name")
         aug = globals()[aug_name]
-        if aug_name == "CastToTyped":
+        if aug_name.startswith("CastToType"):
             # Special handling for type to enable AMP training
             islist = isinstance(aug_d["dtype"], list)
             if not islist:
                 aug_d["dtype"] = [aug_d["dtype"]]
-            types = [dtype if t == "dtype" else t for t in aug_d["dtype"]]
+            types = [dtype if t == "dtype" else getattr(torch, t) for t in aug_d["dtype"]]
             if islist:
                 aug_d["dtype"] = types
             else:

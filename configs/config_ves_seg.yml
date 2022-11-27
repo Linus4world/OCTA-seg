@@ -5,11 +5,14 @@ General:
   num_layers: 3
   kernel_size: 3
   task: ves-seg
-  model: DynUNet
-Data:
-  num_classes: 1
-  class_balance:
-  - 1
+  model:
+    name: DynUNet
+    spatial_dims: 2
+    in_channels: 1
+    out_channels: 1
+    kernel_size: [3,3,3,3,3]
+    strides: [1,2,2,2,1]
+    upsample_kernel_size: [1,2,2,2,1]
 Train:
   data:
     image:
@@ -112,6 +115,17 @@ Train:
     - label
     - deep
     dtype: dtype
+  post_processing:
+    prediction:
+    - name: Activations
+      sigmoid: true
+    - name: AsDiscrete
+      threshold: 0.5
+    - name: RemoveSmallObjects
+      min_size: 256
+    label:
+    - name: CastToType
+      dtype: uint8
 Validation:
   batch_size: 4
   data:
@@ -214,3 +228,11 @@ Output:
   save_to_disk: true
   save_to_tensorboard: true
   save_interval: 1
+Voreen:
+  image_file: ""
+  voreen_tool_path: /home/shared/Software/Voreen-source/bin/
+  workspace_file: /home/lkreitner/OCTA-seg/voreen/feature-vesselgraphextraction_customized_command_line.vws
+  outdir: /home/lkreitner/OCTA-seg/voreen/workdir/
+  tempdir: /home/lkreitner/OCTA-seg/voreen/tmpdir/
+  cachedir: /home/lkreitner/OCTA-seg/voreen/cachedir/
+  bulge_size: 1.5

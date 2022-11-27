@@ -3,8 +3,10 @@ from torch import nn
 from models.gan_seg_model import GanSegModel
 
 class CUT(GanSegModel):
-    def __init__(self, generator: nn.Module, discriminator: nn.Module, segmentor: nn.Module, compute_identity=True, compute_identity_seg=True, nce_layers = list[int]):
-        super().__init__(generator, discriminator, segmentor, compute_identity, compute_identity_seg)
+    def __init__(self,
+        nce_layers = list[int],
+        **kwargs):
+        super().__init__(**kwargs)
         self.nce_layers = nce_layers
 
     def forward(self, input, _=None, complete=False):
