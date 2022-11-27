@@ -153,21 +153,23 @@ def get_post_transformation(config: dict, phase: str, task: Task, num_classes=2)
     """
     Create and return the data transformation that is applied to the model prediction before inference.
     """
-    if task == Task.VESSEL_SEGMENTATION:
-        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), RemoveSmallObjects(396)]), Compose([CastToType(dtype=torch.uint8)])
-    elif task == Task.GAN_VESSEL_SEGMENTATION:
-        if phase != "test" or config["Test"]["inference"] == "S":
-            return Compose([AsDiscrete(threshold=0.5), RemoveSmallObjects(256)]), Compose()
-        else:
-            return Compose(), Compose()
-    elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
-         return Compose(), Compose()
-    elif task == task == Task.AREA_SEGMENTATION:
-        return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([CastToType(dtype=torch.uint8)])
-    elif num_classes>1:
-        return Compose([Activations(softmax=True)]), Compose([AsDiscrete(to_onehot=num_classes)])
-    else:
-        return Compose([AsOneHot(num_classes=3)]), Compose([AsDiscrete(to_onehot=3)])
+    aug_config: dict = config[phase.capitalize()]["post_processing"]
+    return Compose(get_data_augmentations(aug_config.get("prediction"))), Compose(get_data_augmentations(aug_config.get("label")))
+    # if task == Task.VESSEL_SEGMENTATION:
+    #     return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), RemoveSmallObjects(396)]), Compose([CastToType(dtype=torch.uint8)])
+    # elif task == Task.GAN_VESSEL_SEGMENTATION:
+    #     if phase != "test" or config["Test"]["inference"] == "S":
+    #         return Compose([AsDiscrete(threshold=0.5), RemoveSmallObjects(256)]), Compose()
+    #     else:
+    #         return Compose(), Compose()
+    # elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
+    #      return Compose(), Compose()
+    # elif task == task == Task.AREA_SEGMENTATION:
+    #     return Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)]), Compose([CastToType(dtype=torch.uint8)])
+    # elif num_classes>1:
+    #     return Compose([Activations(softmax=True)]), Compose([AsDiscrete(to_onehot=num_classes)])
+    # else:
+    #     return Compose([AsOneHot(num_classes=3)]), Compose([AsDiscrete(to_onehot=3)])
 
 
 def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:

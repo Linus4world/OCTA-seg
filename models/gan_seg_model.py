@@ -2,11 +2,27 @@ import torch
 from torch import nn
 
 class GanSegModel(nn.Module):
-    def __init__(self, generator: nn.Module, discriminator: nn.Module, segmentor: nn.Module, compute_identity = True, compute_identity_seg = True):
+
+    def __init__(self,
+        MODEL_DICT: dict,
+        model_g: dict,
+        model_d: dict,
+        model_s: dict,
+        compute_identity=True,
+        compute_identity_seg=True,
+        phase="train",
+        inference: str=None,
+        **kwargs):
         super().__init__()
-        self.generator = generator
-        self.discriminator = discriminator
-        self.segmentor = segmentor
+        self.segmentor: nn.Module = None
+        self.generator: nn.Module = None
+        self.discriminator: nn.Module = None
+        if phase == "train" or inference == "S":
+            self.segmentor = MODEL_DICT[model_s.pop("name")](**model_s)
+        if phase == "train" or inference == "G":
+            self.generator = MODEL_DICT[model_g.pop("name")](**model_g)
+        if phase == "train":
+            self.discriminator = MODEL_DICT[model_d.pop("name")](**model_d)
         self.compute_identity = compute_identity
         self.compute_identity_seg = compute_identity_seg
         self.inference = False

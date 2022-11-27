@@ -6,9 +6,17 @@ from utils.metrics import Task
 
 from models.networks import MODEL_DICT, init_weights
 
+def define_model(config: dict, phase: Literal["train", "val", "test"]):
+    device = torch.device(config["General"]["device"])
+    model_params: dict = config["General"]["model"]
+    model_name = model_params.pop("name")
+    model = MODEL_DICT[model_name](**model_params, phase=phase, MODEL_DICT=MODEL_DICT)
+    if isinstance(model, torch.nn.Module):
+        model = model.to(device)
+    return model
 
-def define_model(config: dict, phase: Literal["train", "val", "test"]) -> tuple[torch.nn.Module, Union[torch.optim.Optimizer, tuple[torch.optim.Optimizer]]]:
-    # Model
+
+def define_model_OLD(config: dict, phase: Literal["train", "val", "test"]) -> tuple[torch.nn.Module, Union[torch.optim.Optimizer, tuple[torch.optim.Optimizer]]]:
     num_layers = config["General"]["num_layers"]
     kernel_size = config["General"]["kernel_size"]
     device = torch.device(config["General"]["device"])
@@ -93,9 +101,11 @@ def define_model(config: dict, phase: Literal["train", "val", "test"]) -> tuple[
     return model
 
 def initialize_model_and_optimizer(model: torch.nn.Module, config: dict, args, load_best=False, phase="train") -> Union[torch.optim.Optimizer, tuple[torch.optim.Optimizer]]:
+    if not isinstance(model, torch.nn.Module):
+        return None
+    
     task = config["General"]["task"]
     model_path: str = config["Test"]["model_path"]
-    model_name: str = config["General"]["model"]
     if task == Task.GAN_VESSEL_SEGMENTATION or task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
         model: GanSegModel = model
         if phase == "train":
@@ -115,12 +125,12 @@ def initialize_model_and_optimizer(model: torch.nn.Module, config: dict, args, l
                 model.segmentor.load_state_dict(checkpoint_S['model'])
                 optimizer_S.load_state_dict(checkpoint_S['optimizer'])
             elif task == Task.GAN_VESSEL_SEGMENTATION: 
-                for m, m_name in zip([model.generator, model.discriminator, model.segmentor], [config["General"]["model_g"], config["General"]["model_d"], config["General"]["model_s"]]):
-                    activation = 'relu' if m_name.lower().startswith("resnet") else 'leaky_relu'
+                for m in [model.generator, model.discriminator, model.segmentor]:
+                    activation = 'relu' if m._get_name().lower().startswith("resnet") else 'leaky_relu'
                     init_weights(m, init_type='kaiming', nonlinearity=activation)
             else:
-                for m, m_name in zip([model.generator, model.discriminator], [config["General"]["model_g"], config["General"]["model_d"]]):
-                    activation = 'relu' if (m_name.lower().startswith("resnet") or m_name.lower().startswith("patch")) else 'leaky_relu'
+                for m in [model.generator, model.discriminator]:
+                    activation = 'relu' if (m._get_name().lower().startswith("resnet") or m._get_name().lower().startswith("patch")) else 'leaky_relu'
                     init_weights(m, init_type='kaiming', nonlinearity=activation)
 
             return (optimizer_G,optimizer_D,optimizer_S)
@@ -150,7 +160,7 @@ def initialize_model_and_optimizer(model: torch.nn.Module, config: dict, args, l
         optimizer=None
         print("Loaded checkpoint from epoch", checkpoint['epoch'])
     else:
-        activation = 'relu' if model_name.lower().startswith("resnet") else 'leaky_relu'
+        activation = 'relu' if model._get_name().lower().startswith("resnet") else 'leaky_relu'
         init_weights(model, init_type='kaiming', nonlinearity=activation)
         optimizer = torch.optim.Adam(model.parameters(), config["Train"]["lr"], weight_decay=1e-6)
     return optimizer

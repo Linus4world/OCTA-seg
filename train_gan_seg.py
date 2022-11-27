@@ -46,7 +46,7 @@ task: Task = config["General"]["task"]
 visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT=False)
 
 train_loader = get_dataset(config, "train")
-post_pred, post_label = get_post_transformation(config, "train", task, num_classes=config["Data"]["num_classes"])
+post_pred, post_label = get_post_transformation(config, "train", task)
 
 # import warnings
 # warnings.filterwarnings('error', category=RuntimeWarning)

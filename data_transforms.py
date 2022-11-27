@@ -439,6 +439,8 @@ class RandCropOrPadd(MapTransform):
         return data
 
 def get_data_augmentations(aug_config: list[dict], dtype=torch.float32) -> list:
+    if aug_config is None:
+        return []
     augs = []
     for aug_d in aug_config:
         aug_d = dict(aug_d)

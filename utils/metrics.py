@@ -449,16 +449,20 @@ def get_loss_function(task: Task, config: dict) -> tuple[str, Union[clDiceLoss, 
         return "CosineEmbeddingLoss", WeightedCosineLoss(weights=[1/0.537,1/0.349,1/0.115])
 
 def get_loss_function_by_name(name: str, config: dict, scaler: GradScaler=None, loss=None) -> Union[clDiceLoss, DiceBCELoss, torch.nn.CrossEntropyLoss, WeightedCosineLoss]:
+    if "Data" in config:
+        weight = 1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])
+    else:
+        weight = None
     loss_map = {
         # "AtLoss": AtLoss(scaler, loss, None, 200/255, 1, alpha=1.25 * (100/255), grad_align_cos_lambda=0),
         "AtLoss": ANTLoss(scaler, loss, (8,8)),
         "clDiceLoss": clDiceLoss(alpha=config["Train"]["lambda_cl_dice"] if "lambda_cl_dice" in config["Train"] else 0),
         "DiceBCELoss": DiceBCELoss(True),
         "clDiceBceLoss": clDiceBceLoss(lambda_dice=0.4, lambda_cldice=0.1, lambda_bce=0.5, sigmoid=True),
-        "CrossEntropyLoss": torch.nn.CrossEntropyLoss(weight=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),
-        "CosineEmbeddingLoss": WeightedCosineLoss(weights=1/torch.tensor(config["Data"]["class_balance"], device=config["General"]["device"])),
+        "CrossEntropyLoss": torch.nn.CrossEntropyLoss(weight=weight),
+        "CosineEmbeddingLoss": WeightedCosineLoss(weights=weight),
         "MSELoss": torch.nn.MSELoss(),
-        "WeightedMSELoss": WeightedMSELoss(weights=1/torch.tensor(config["Data"]["class_balance"])),
+        "WeightedMSELoss": WeightedMSELoss(weights=weight),
         "QWKLoss": QWKLoss(),
         "LSGANLoss": LSGANLoss().to(device=config["General"]["device"]),
         "NCELoss": NCELoss(config["Train"]["lambda_NCE"] if "lambda_NCE" in config["Train"] else 0, config["Train"]["nce_layers"] if "nce_layers" in config["Train"] else [], config["General"]["device"], config["Train"]["batch_size"])
