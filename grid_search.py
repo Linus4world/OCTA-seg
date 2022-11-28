@@ -13,7 +13,7 @@ from models.networks import ResNet, resnet18, resnet50
 from monai.networks.nets import DynUNet
 from tqdm import tqdm
 
-from image_dataset import get_dataset, get_post_transformation
+from data.image_dataset import get_dataset, get_post_transformation
 from utils.metrics import MetricsManager, Task, get_loss_function
 from utils.visualizer import Visualizer
 

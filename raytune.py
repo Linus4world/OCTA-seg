@@ -15,7 +15,7 @@ from monai.utils import set_determinism
 import yaml
 from models.model import define_model, initialize_model_and_optimizer
 
-from image_dataset import get_dataset, get_post_transformation
+from data.image_dataset import get_dataset, get_post_transformation
 from utils.metrics import MetricsManager, Task, get_loss_function_by_name
 from utils.raytune_config import OPTIMIZE_TYPE, get_raytune_config
 from utils.visualizer import Visualizer

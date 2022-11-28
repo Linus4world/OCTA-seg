@@ -4,12 +4,12 @@ import torch
 import os
 from tqdm import tqdm
 import numpy as np
-
-from monai.data import decollate_batch
 import yaml
+from monai.data import decollate_batch
+
 from models.model import define_model, initialize_model_and_optimizer
 
-from image_dataset import get_dataset, get_post_transformation
+from data.image_dataset import get_dataset, get_post_transformation
 from utils.metrics import MetricsManager, Task
 
 # Parse input arguments

@@ -9,7 +9,7 @@ from monai.utils import set_determinism
 import yaml
 from models.model import define_model, initialize_model_and_optimizer
 
-from image_dataset import get_dataset, get_post_transformation
+from data.image_dataset import get_dataset, get_post_transformation
 from utils.masks_to_nii import masks2nii
 from utils.metrics import Task
 

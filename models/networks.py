@@ -14,8 +14,8 @@ import functools
 import torch.nn.functional as F
 from models.cut import CUT
 from models.gan_seg_model import GanSegModel
-from oof import OOF
-from frangi import Frangi
+from models.oof import OOF
+from models.frangi import Frangi
 
 V = TypeVar("V")
 

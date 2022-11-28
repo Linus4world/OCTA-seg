@@ -14,7 +14,7 @@ from models.model import define_model, initialize_model_and_optimizer
 import time
 from tqdm import tqdm
 
-from image_dataset import get_dataset, get_post_transformation
+from data.image_dataset import get_dataset, get_post_transformation
 from utils.metrics import MetricsManager, Task, get_loss_function_by_name
 from utils.visualizer import Visualizer
 
