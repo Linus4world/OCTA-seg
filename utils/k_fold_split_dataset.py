@@ -17,22 +17,22 @@ def mkdir(path):
         os.mkdir(path)
 
 K = 5
-stratified = True
-train_split = 0.8
+stratified = False
+train_split = 1-(1/K)
 
 random.seed(0)
-data_root = '/home/lkreitner/OCTA-seg/datasets/'
-mkdir(data_root)
-data_root = '/home/lkreitner/OCTA-seg/datasets/DRAC_B'
+# data_root = '/home/lkreitner/OCTA-seg/datasets/'
+# mkdir(data_root)
+data_root = '/home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images'
 mkdir(data_root)
 
-labels_file = "/home/shared/Data/DRAC22/B. Image Quality Assessment/2. Groundtruths/a. DRAC2022_ Image Quality Assessment_Training Labels.csv"
-reader = csv.reader(open(labels_file, 'r'))
-next(reader)
-all_labels = np.array([int(v) for k, v in reader])
-all_indices=list(range(len(all_labels)))
 
 if stratified:
+    labels_file = "/home/shared/Data/DRAC22/B. Image Quality Assessment/2. Groundtruths/a. DRAC2022_ Image Quality Assessment_Training Labels.csv"
+    reader = csv.reader(open(labels_file, 'r'))
+    next(reader)
+    all_labels = np.array([int(v) for k, v in reader])
+    all_indices=list(range(len(all_labels)))
     indices_0 = np.where(all_labels==0)[0]
     indices_1 = np.where(all_labels==1)[0]
     indices_2 = np.where(all_labels==2)[0]
@@ -66,12 +66,14 @@ if stratified:
         with open(os.path.join(data_root, f'val_{i}.txt'), 'w+') as f:
             f.writelines([f"{i}\n" for i in val_split_i])
 else:
+    paths = get_custom_file_paths(data_root, '')
+    all_indices = list(range(len(paths)))
     random.shuffle(all_indices)
     start_ind = None
     end_ind = 0
     for i in range(K):
         start_ind = end_ind
-        end_ind = ((i+1)/K) * len(all_indices)
+        end_ind = round(((i+1)/K) * len(all_indices))
         val_split_i = np.sort(all_indices[start_ind:end_ind])
         train_split_i = np.sort([l for l in all_indices if l not in val_split_i])
 

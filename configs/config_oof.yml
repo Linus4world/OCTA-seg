@@ -10,24 +10,27 @@ Validation:
   batch_size: 1
   data:
     image:
-      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images/ # Edinburgh
+      # folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images/ # Edinburgh
+      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_0.txt
+
+      # folder: /home/lkreitner/OCTA-seg/datasets/ROSE-1/images/ # ROSE-1
+      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_0.txt
+
+      folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/images/ # OCTA-500
+      split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/train_0.txt
+
       suffix: .png
-
-      # folder: /home/shared/Data/ROSE/ROSE-1/SVC_DVC/train/img/ # ROSE-1
-      # suffix: .png
-
-      # folder: /home/shared/Data/OCTA-500/Labels and projection maps/OCTA_3M/Projection Maps/OCTA(ILM_OPL)/ # OCTA-500
-      # suffix: .bmp
     label: 
-      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/segmented_images # Edinburgh
+      # folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/segmented_images/ # Edinburgh
+      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_0.txt
+
+      # folder: /home/lkreitner/OCTA-seg/datasets/ROSE-1/segmentations/ # ROSE-1
+      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_0.txt
+
+      folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/segmentations/ # OCTA-500
+      split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/train_0.txt
+
       suffix: .png
-
-      # folder: /home/shared/Data/ROSE/ROSE-1/SVC_DVC/train/gt # ROSE-1
-      # suffix: .tif
-
-      # folder: /home/shared/Data/OCTA-500/Labels and projection maps/OCTA_3M/GroundTruth # OCTA-500
-      # suffix: .bmp
-  save_images: false
   data_augmentation:
   - name: LoadImaged
     keys:
@@ -63,16 +66,70 @@ Validation:
   post_processing:
     prediction:
     - name: AsDiscrete
-      threshold: 0.5 # Edinburgh
+      # threshold: 0.5 # Edinburgh
       # threshold: 0.59 # ROSE
-      # threshold: 0.62 # OCTA-500
+      threshold: 0.62 # OCTA-500
     - name: RemoveSmallObjects
-      min_size: 8 # Edinburgh
+      # min_size: 8 # Edinburgh
       # min_size: 32 # ROSE-1
-      # min_size: 64 # OCTA-500
+      min_size: 64 # OCTA-500
     label: null
+Test:
+  batch_size: 1
+  data:
+    image:
+      # folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images/ # Edinburgh
+      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_0.txt
+
+      # folder: /home/lkreitner/OCTA-seg/datasets/ROSE-1/images/ # ROSE-1
+      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_0.txt
+
+      folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/images/ # OCTA-500
+      split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/train_0.txt
+
+      suffix: .png
+  save_images: false
+  data_augmentation:
+  - name: LoadImaged
+    keys:
+    - image
+    image_only: true
+  - name: ScaleIntensityd
+    keys:
+    - image
+    minv: 0
+    maxv: 1
+  - name: EnsureChannelFirstd
+    keys:
+    - image
+    strict_check: false
+  - name: Rotate90d
+    keys:
+    - image
+    k: 1
+  - name: Flipd
+    keys:
+    - image
+    spatial_axis: 0
+  - name: CastToTyped
+    keys:
+    - image
+    dtype: dtype
+  post_processing:
+    prediction:
+    - name: AsDiscrete
+      # threshold: 0.5 # Edinburgh
+      # threshold: 0.59 # ROSE
+      threshold: 0.62 # OCTA-500
+    - name: RemoveSmallObjects
+      # min_size: 8 # Edinburgh
+      # min_size: 32 # ROSE-1
+      min_size: 64 # OCTA-500
+    label: null
+  num_samples: 5
+  save_dir: /home/lkreitner/OCTA-seg/results/oof/test
 Output:
-  save_dir: "/home/lkreitner/OCTA-seg/results/frangi"
+  save_dir: "/home/lkreitner/OCTA-seg/results/oof"
   save_to_disk: true
   save_to_tensorboard: false
   save_interval: 1

@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.fft import fftn, ifftn
 from scipy.special import jv as besselj
-from tqdm import tqdm
+import torch
 
 EPSILON = 1e-12
 
@@ -10,7 +10,7 @@ class OOF:
     2D Optimal Oriented Flux (OOF) filter.
     Code based on https://github.com/fepegar/optimally-oriented-flux
     """
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.nifti = None
         self.radii = None
 
@@ -24,14 +24,27 @@ class OOF:
         self.use_absolute = True
         self.normalization_type = 1
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
-        oof = self.compute_oof(img, self.radii)
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+        """Computes the frangi filter image. Binarization needs to be applied afterwards.
+        Implementation based on https://de.mathworks.com/matlabcentral/fileexchange/41612-optimally-oriented-flux-oof-for-3d-curvilinear-structure-detection
+
+        Args:
+            img (torch.Tensor): Image tensor of shape [B,C,H,W] scaled to [0,1]
+
+        Returns:
+            torch.Tensor: filtered image tensor of shape [B,C,H,W] scaled to [0,1]
+        """
+        assert img.shape[0]==1
+        oof = img.squeeze().numpy() * 255
+        oof = self.compute_oof(oof, self.radii)
         oof = oof+oof.max()
         oof = oof / oof.max()
+        oof = torch.tensor(oof).view(img.shape)
+        return oof
 
-    def eval():
+    def eval(self):
         pass
-    def train():
+    def train(self):
         pass
 
     def get_radii(self) -> np.ndarray:
@@ -52,8 +65,8 @@ class OOF:
         imgfft = fftn(array)
         x, y, sphere_radius = get_min_sphere_radius(shape, self.spacing)
 
-        for radius in tqdm(radii):
-            tqdm.write(f'Computing radius {radius:.3f}...')
+        for radius in radii:
+            # tqdm.write(f'Computing radius {radius:.3f}...')
             circle = circle_length(radius)
             nu = 1.5
             z_circle = circle * EPSILON
