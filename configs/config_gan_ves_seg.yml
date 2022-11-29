@@ -23,14 +23,15 @@ General:
 Train:
   data:
     real_B:
-      folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500_healthy
-      suffix: .bmp
+      folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/images
+      suffix: .png
+      split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/train_0.txt
     real_A:
-      folder: /home/lkreitner/OCTA-seg/datasets/synth_0008_304x304_MIP
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025_304x304
       suffix: .png
     real_A_seg:
-      folder: /home/lkreitner/OCTA-seg/datasets/synth_0008
-      suffix: .png
+      folder: /home/lkreitner/arterial-tree-generation/dataset_26_11_22
+      suffix: gray.png
     deep:
       folder: /home/lkreitner/OCTA-seg/datasets/deep_11_11_22
       suffix: .png
@@ -54,7 +55,7 @@ Train:
     - real_A
     - real_B
     - real_A_seg
-    - deep
+    # - deep
     minv: 0
     maxv: 1
   - name: EnsureChannelFirstd
@@ -225,11 +226,3 @@ Output:
   save_to_disk: true
   save_to_tensorboard: true
   save_interval: 1
-Voreen:
-  image_file: ""
-  voreen_tool_path: /home/shared/Software/Voreen-source/bin/
-  workspace_file: /home/lkreitner/OCTA-seg/voreen/feature-vesselgraphextraction_customized_command_line.vws
-  outdir: /home/lkreitner/OCTA-seg/voreen/workdir/
-  tempdir: /home/lkreitner/OCTA-seg/voreen/tmpdir/
-  cachedir: /home/lkreitner/OCTA-seg/voreen/cachedir/
-  bulge_size: 1.5

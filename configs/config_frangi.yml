@@ -10,25 +10,25 @@ Validation:
   batch_size: 1
   data:
     image:
-      # folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images/ # Edinburgh
-      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_0.txt
+      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images/ # Edinburgh
+      split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_1.txt
 
       # folder: /home/lkreitner/OCTA-seg/datasets/ROSE-1/images/ # ROSE-1
-      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_0.txt
+      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_4.txt
 
-      folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/images/ # OCTA-500
-      split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/train_0.txt
+      # folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/images/ # OCTA-500
+      # split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/val_4.txt
 
       suffix: .png
     label: 
-      # folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/segmented_images/ # Edinburgh
-      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_0.txt
+      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/segmented_images/ # Edinburgh
+      split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_1.txt
 
       # folder: /home/lkreitner/OCTA-seg/datasets/ROSE-1/segmentations/ # ROSE-1
-      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_0.txt
+      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_4.txt
 
-      folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/segmentations/ # OCTA-500
-      split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/train_0.txt
+      # folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/segmentations/ # OCTA-500
+      # split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/val_4.txt
 
       suffix: .png
   data_augmentation:
@@ -66,13 +66,13 @@ Validation:
   post_processing:
     prediction:
     - name: AsDiscrete
-      # threshold: 0.1 # Edinburgh
-      # threshold: 0.3 # ROSE
-      threshold: 0.74 # OCTA-500 split-0
+      threshold: 0.03 # Edinburgh
+      # threshold: 0.34 # ROSE
+      # threshold: 0.76 # OCTA-500
     - name: RemoveSmallObjects
-      # min_size: 8 # Edinburgh
-      # min_size: 32 # ROSE-1
-      min_size: 38 # OCTA-500 split-0
+      min_size: 2 # Edinburgh
+      # min_size: 62 # ROSE-1
+      # min_size: 32 # OCTA-500
     label: null
 Test:
   batch_size: 1
@@ -118,13 +118,13 @@ Test:
   post_processing:
     prediction:
     - name: AsDiscrete
-      # threshold: 0.1 # Edinburgh
+      threshold: 0.03 # Edinburgh
       # threshold: 0.3 # ROSE
-      threshold: 0.74 # OCTA-500
+      # threshold: 0.74 # OCTA-500
     - name: RemoveSmallObjects
-      # min_size: 8 # Edinburgh
+      min_size: 2 # Edinburgh
       # min_size: 32 # ROSE-1
-      min_size: 38 # OCTA-500
+      # min_size: 38 # OCTA-500
     label: null
   num_samples: 5
   save_dir: /home/lkreitner/OCTA-seg/results/frangi/test
