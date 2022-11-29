@@ -8,5 +8,11 @@ prettytable
 tensorboard
 opencv-python
 SimpleITK
-ray[tune]
-hyperopt
+tensorboard
+scipy
+jupyterlab
+natsort
+nibabel
+PyYAML
+scikit-image
+h5py

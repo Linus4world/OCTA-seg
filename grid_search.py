@@ -14,7 +14,8 @@ from monai.networks.nets import DynUNet
 from tqdm import tqdm
 
 from data.image_dataset import get_dataset, get_post_transformation
-from utils.metrics import MetricsManager, Task, get_loss_function
+from utils.metrics import MetricsManager, Task
+from utils.losses import get_loss_function_by_name
 from utils.visualizer import Visualizer
 
 # Parse input arguments
@@ -42,7 +43,8 @@ task: Task = config["General"]["task"]
 val_loader = get_dataset(config, 'validation')
 post_pred, post_label = get_post_transformation(task, num_classes=config["Data"]["num_classes"])
 
-loss_name, loss_function = get_loss_function(task, config)
+loss_name = config["Train"]["loss"]
+loss_function = get_loss_function_by_name(loss_name, config)
 
 set_determinism(seed=0)
 

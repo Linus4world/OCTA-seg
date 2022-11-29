@@ -3,7 +3,6 @@ import json
 import torch
 import os
 from tqdm import tqdm
-import numpy as np
 import yaml
 from monai.data import decollate_batch
 
