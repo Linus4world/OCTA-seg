@@ -38,9 +38,6 @@ optimizer = initialize_model_and_optimizer(model, config, args, load_best=True, 
 
 metrics = MetricsManager(task)
 predictions = []
-# num_classes = config["Data"]["num_classes"] if config["Data"]["num_classes"]>1 else 3
-# tp_per_class = np.array([0 for _ in range(num_classes)])
-# num_pos_per_class = np.array([0 for _ in range(num_classes)])
 
 model.eval()
 with torch.no_grad():
@@ -56,17 +53,7 @@ with torch.no_grad():
             val_outputs: torch.Tensor = model(val_inputs)
             val_outputs = [post_pred(i) for i in decollate_batch(val_outputs)]
             val_labels = [post_label(i) for i in decollate_batch(val_labels)]
-
-            # if task == Task.VESSEL_SEGMENTATION:
-            #     pass
-            # elif task == Task.IMAGE_QUALITY_CLASSIFICATION or task == Task.RETINOPATHY_CLASSIFICATION:
-            #     pred_label=np.argmax(val_outputs[0].detach().cpu().numpy())
-            #     true_label = np.argmax(val_labels[0].numpy())
-            #     if pred_label==true_label:
-            #         tp_per_class[pred_label] += 1
-            #     num_pos_per_class[true_label] += 1
-            #     print(f'Accuracy per class: {tp_per_class/num_pos_per_class}')
             metrics(val_outputs, val_labels)
                 
-        metrics = {k: str(round(v, 4)) for k,v in metrics.aggregate_and_reset("val").items()}
+        metrics = {k: float(str(round(v, 4))) for k,v in metrics.aggregate_and_reset("val").items()}
         print(f'Metrics: {metrics}')

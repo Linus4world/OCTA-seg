@@ -1,7 +1,10 @@
 
+from abc import ABC
 import numpy as np
 import torch
-from monai.metrics import MeanIoU, ROCAUCMetric, MSEMetric
+from monai.metrics import MeanIoU, ROCAUCMetric, compute_roc_auc
+from utils.cldice import clDice
+
 
 class Task:
     VESSEL_SEGMENTATION = "ves-seg"
@@ -10,6 +13,17 @@ class Task:
     RETINOPATHY_CLASSIFICATION = "ret-clf"
     GAN_VESSEL_SEGMENTATION = "gan-ves-seg"
     CONSTRASTIVE_UNPAIRED_TRANSLATION = "cut"
+
+class Metric(ABC):
+    def __init__(self) -> None:
+        self.reset()
+    def __call__(self, y_pred: list[torch.Tensor], y: list[torch.Tensor]):
+        pass
+    def aggregate(self) -> torch.Tensor:
+        metric = np.nanmean(self.scores)
+        return torch.tensor(metric)
+    def reset(self):
+        self.scores = []
 
 def confusion_matrix(rater_a, rater_b, min_rating=None, max_rating=None):
     assert(len(rater_a) == len(rater_b))
@@ -62,14 +76,10 @@ def quadratic_weighted_kappa(rater_a, rater_b, min_rating=None, max_rating=None)
             denominator += d * expected_count / num_scored_items
     return 1.0 - numerator / denominator
 
-class QuadraticWeightedKappa:
+class QuadraticWeightedKappa(Metric):
     """
     Implementation following https://github.com/zhuanjiao2222/DRAC2022/blob/main/evaluation/metric_classification.py
     """
-    def __init__(self) -> None:
-        self.preds=[]
-        self.labels=[]
-
     def __call__(self, y_pred: list[torch.Tensor], y: list[torch.Tensor]) -> None:
         for y_pred_i, y_i in zip(y_pred, y):
             pred_label = np.argmax(y_pred_i.detach().cpu().numpy())
@@ -87,11 +97,7 @@ class QuadraticWeightedKappa:
         self.preds = []
         self.labels = []
 
-class MacroDiceMetric:
-    def __init__(self) -> None:
-        self.preds=[]
-        self.labels=[]
-
+class MacroDiceMetric(Metric):
     def get_dice(self, gt, pred, classId=1):
         if np.sum(gt) == 0:
             return np.nan
@@ -121,13 +127,61 @@ class MacroDiceMetric:
         self.preds = []
         self.labels = []
 
+class ClDiceMetric(Metric):
+    def __call__(self, y_pred: list[torch.Tensor], y: list[torch.Tensor]):
+        for y_pred_i, y_i in zip(y_pred, y):
+            for layer in range(len(y_pred_i)):
+                self.scores.append(clDice(y_pred_i[layer].detach().cpu().numpy(), y_i[layer].detach().cpu().numpy()))
+
+class AccuracyMetric(Metric):
+    def __call__(self, y_pred: list[torch.Tensor], y: list[torch.Tensor]):
+        for y_pred_i, y_i in zip(y_pred, y):
+            y_pred_i = y_pred_i.detach().cpu().numpy().flatten().astype(bool)
+            y_i = y_i.detach().cpu().numpy().flatten().astype(bool)
+            TP = (y_pred_i & y_i).sum()
+            TN = (~y_pred_i & ~y_i).sum()
+            FP = (y_pred_i & ~y_i).sum()
+            FN = (~y_pred_i & y_i).sum()
+            ACC = (TP+TN) / (TP+TN+FP+FN)
+            self.scores.append(ACC)
+
+class Recall(Metric):
+    def __call__(self, y_pred: list[torch.Tensor], y: list[torch.Tensor]):
+        for y_pred_i, y_i in zip(y_pred, y):
+            y_pred_i = y_pred_i.detach().cpu().numpy().flatten().astype(bool)
+            y_i = y_i.detach().cpu().numpy().flatten().astype(bool)
+            TP = (y_pred_i & y_i).sum()
+            FN = (~y_pred_i & y_i).sum()
+            RECALL = TP / (TP+FN)
+            self.scores.append(RECALL)
+
+class Precision(Metric):
+    def __call__(self, y_pred: list[torch.Tensor], y: list[torch.Tensor]):
+        for y_pred_i, y_i in zip(y_pred, y):
+            y_pred_i = y_pred_i.detach().cpu().numpy().flatten().astype(bool)
+            y_i = y_i.detach().cpu().numpy().flatten().astype(bool)
+            TP = (y_pred_i & y_i).sum()
+            FP = (y_pred_i & ~y_i).sum()
+            PRECISION = TP / (TP+FP)
+            self.scores.append(PRECISION)
+
+class AUCMetric(Metric):
+    def __call__(self, y_pred: list[torch.Tensor], y: list[torch.Tensor]):
+        for y_pred_i, y_i in zip(y_pred, y):
+            self.scores.append(compute_roc_auc(y_pred_i.detach().cpu().flatten(), y_i.detach().cpu().flatten()))
 
 class MetricsManager():
     def __init__(self, task: Task):
         if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION or task == Task.GAN_VESSEL_SEGMENTATION:
             self.metrics = {
                 "DSC": MacroDiceMetric(),
-                "IoU": MeanIoU(include_background=True, reduction="mean")
+                "IoU": MeanIoU(include_background=True, reduction="mean"),
+                "ClDice": ClDiceMetric(),
+                "AUC": AUCMetric(),
+                "ACC": AccuracyMetric(),
+                "Recall": Recall(),
+                "Precision": Precision()
+
             }
             self.comp = "DSC"
         elif task == Task.IMAGE_QUALITY_CLASSIFICATION or task == Task.RETINOPATHY_CLASSIFICATION:

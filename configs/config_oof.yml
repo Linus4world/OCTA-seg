@@ -10,69 +10,69 @@ Validation:
   batch_size: 1
   data:
     image:
-      # folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images/ # Edinburgh
-      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_4.txt
+      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images/ # Edinburgh
+      split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_0.txt
 
       # folder: /home/lkreitner/OCTA-seg/datasets/ROSE-1/images/ # ROSE-1
-      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_4.txt
+      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_0.txt
 
-      folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/images/ # OCTA-500
-      split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/val_4.txt
+      # folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/images/ # OCTA-500
+      # split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/val_4.txt
 
       suffix: .png
     label: 
-      # folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/segmented_images/ # Edinburgh
-      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_4.txt
+      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/segmented_images/ # Edinburgh
+      split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_0.txt
 
       # folder: /home/lkreitner/OCTA-seg/datasets/ROSE-1/segmentations/ # ROSE-1
-      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_4.txt
+      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_0.txt
 
-      folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/segmentations/ # OCTA-500
-      split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/val_4.txt
+      # folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/segmentations/ # OCTA-500
+      # split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/val_4.txt
 
       suffix: .png
   data_augmentation:
-  - name: LoadImaged
-    keys:
-    - image
-    - label
-    image_only: true
-  - name: ScaleIntensityd
-    keys:
-    - image
-    - label
-    minv: 0
-    maxv: 1
-  - name: EnsureChannelFirstd
-    keys:
-    - image
-    - label
-    strict_check: false
-  - name: Rotate90d
-    keys:
-    - image
-    - label
-    k: 1
-  - name: Flipd
-    keys:
-    - image
-    - label
-    spatial_axis: 0
-  - name: CastToTyped
-    keys:
-    - image
-    - label
-    dtype: dtype
+    - name: LoadImaged
+      keys:
+      - image
+      - label
+      image_only: true
+    - name: ScaleIntensityd
+      keys:
+      - image
+      - label
+      minv: 0
+      maxv: 1
+    - name: EnsureChannelFirstd
+      keys:
+      - image
+      - label
+      strict_check: false
+    - name: Rotate90d
+      keys:
+      - image
+      - label
+      k: 1
+    - name: Flipd
+      keys:
+      - image
+      - label
+      spatial_axis: 0
+    - name: CastToTyped
+      keys:
+      - image
+      - label
+      dtype: dtype
   post_processing:
     prediction:
     - name: AsDiscrete
-      # threshold: 0.57 # Edinburgh
-      # threshold: 0.57 # ROSE
-      threshold: 0.65 # OCTA-500
+      threshold: 0.58 # Edinburgh
+      # threshold: 0.58 # ROSE
+      # threshold: 0.65 # OCTA-500
     - name: RemoveSmallObjects
-      # min_size: 2 # Edinburgh
-      # min_size: 64 # ROSE-1
-      min_size: 34 # OCTA-500
+      min_size: 5 # Edinburgh
+      # min_size: 54 # ROSE-1
+      # min_size: 34 # OCTA-500
     label: null
 Test:
   batch_size: 1
