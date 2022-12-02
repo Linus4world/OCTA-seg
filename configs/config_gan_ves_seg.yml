@@ -23,14 +23,14 @@ General:
 Train:
   data:
     real_B:
-      folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/images
+      folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500/images
       suffix: .png
-      split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/train_0.txt
+      split: /home/lkreitner/OCTA-seg/datasets/OCTA-500_healthy/train_
     real_A:
-      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025_304x304
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025
       suffix: .png
     real_A_seg:
-      folder: /home/lkreitner/arterial-tree-generation/dataset_26_11_22
+      folder: /home/lkreitner/arterial-tree-generation/dataset_01_12_22
       suffix: gray.png
     deep:
       folder: /home/lkreitner/OCTA-seg/datasets/deep_11_11_22
@@ -43,80 +43,80 @@ Train:
   loss_dg: LSGANLoss
   loss_s: DiceBCELoss
   data_augmentation:
-  - name: LoadImaged
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    - deep
-    image_only: true
-  - name: ScaleIntensityd
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    # - deep
-    minv: 0
-    maxv: 1
-  - name: EnsureChannelFirstd
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    - deep
-    strict_check: false
-  - name: RandFlipd
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    - deep
-    prob: 0.5
-    spatial_axis:
-    - 0
-    - 1
-  - name: RandRotate90d
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    - deep
-    prob: 0.75
-  - name: RandRotated
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    - deep
-    prob: 1
-    range_x: 0.17453292519943295
-    padding_mode: zeros
-  - name: ScaleIntensityd
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    minv: 0
-    maxv: 1
-  - name: AsDiscreted
-    keys:
-    - real_A_seg
-    threshold: 0.1
-  - name: AddRandomGaussianNoiseChanneld
-    keys:
-    - real_A
-  - name: CastToTyped
-    keys:
-    - real_A
-    - real_A_seg
-    - real_B
-    dtype: dtype
+    - name: LoadImaged
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      - deep
+      image_only: true
+    - name: ScaleIntensityd
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      # - deep
+      minv: 0
+      maxv: 1
+    - name: EnsureChannelFirstd
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      - deep
+      strict_check: false
+    - name: RandFlipd
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      - deep
+      prob: 0.5
+      spatial_axis:
+      - 0
+      - 1
+    - name: RandRotate90d
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      - deep
+      prob: 0.75
+    - name: RandRotated
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      - deep
+      prob: 1
+      range_x: 0.17453292519943295
+      padding_mode: zeros
+    - name: ScaleIntensityd
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      minv: 0
+      maxv: 1
+    - name: AsDiscreted
+      keys:
+      - real_A_seg
+      threshold: 0.1
+    - name: AddRandomGaussianNoiseChanneld
+      keys:
+      - real_A
+    - name: CastToTyped
+      keys:
+      - real_A
+      - real_A_seg
+      - real_B
+      dtype: dtype
   post_processing:
     prediction:
-    - name: AsDiscrete
-      threshold: 0.5
-    - name: RemoveSmallObjects
-      min_size: 256
+      - name: AsDiscrete
+        threshold: 0.5
+      - name: RemoveSmallObjects
+        min_size: 256
     label: null
 Validation:
   batch_size: 4
@@ -124,10 +124,10 @@ Test:
   batch_size: 1
   data:
     real_B:
-      folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3
-      suffix: .bmp
+      folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500/images
+      suffix: .png
     real_A:
-      folder: /home/lkreitner/OCTA-seg/datasets/synth_0008_304x304
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025
       suffix: .png
     deep:
       folder: /home/lkreitner/OCTA-seg/datasets/deep_11_11_22
@@ -135,91 +135,70 @@ Test:
   num_samples: 5
   save_images: false
   data_augmentation:
-  - name: LoadImaged
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    - deep
-    allow_missing_keys: true
-    image_only: true
-  - name: ScaleIntensityd
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    - deep
-    allow_missing_keys: true
-    minv: 0
-    maxv: 1
-  - name: EnsureChannelFirstd
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    - deep
-    allow_missing_keys: true
-    strict_check: false
-  - name: RandFlipd
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    - deep
-    allow_missing_keys: true
-    prob: 0.5
-    spatial_axis:
-    - 0
-    - 1
-  - name: RandRotate90d
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    - deep
-    allow_missing_keys: true
-    prob: 0.75
-  - name: RandRotated
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    - deep
-    allow_missing_keys: true
-    prob: 1
-    range_x: 0.17453292519943295
-    padding_mode: zeros
-  - name: ScaleIntensityd
-    keys:
-    - real_A
-    - real_B
-    - real_A_seg
-    allow_missing_keys: true
-    minv: 0
-    maxv: 1
-  - name: AsDiscreted
-    keys:
-    - real_A_seg
-    allow_missing_keys: true
-    threshold: 0.1
-  - name: AddRandomGaussianNoiseChanneld
-    keys:
-    - real_A
-  - name: CastToTyped
-    keys:
-    - real_A
-    - real_A_seg
-    - real_B
-    allow_missing_keys: true
-    dtype: dtype
+    - name: LoadImaged
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      - deep
+      allow_missing_keys: true
+      image_only: true
+    - name: ScaleIntensityd
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      - deep
+      allow_missing_keys: true
+      minv: 0
+      maxv: 1
+    - name: EnsureChannelFirstd
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      - deep
+      allow_missing_keys: true
+      strict_check: false
+    - name: Rotate90d
+      allow_missing_keys: true
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      - deep
+      k: 1
+    - name: Flipd
+      allow_missing_keys: true
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      - deep
+      spatial_axis: 0
+    - name: AsDiscreted
+      keys:
+      - real_A_seg
+      allow_missing_keys: true
+      threshold: 0.1
+    - name: AddRandomGaussianNoiseChanneld
+      keys:
+      - real_A
+    - name: CastToTyped
+      keys:
+      - real_A
+      - real_A_seg
+      - real_B
+      allow_missing_keys: true
+      dtype: dtype
   post_processing:
     # Only if inference=S, else:
     # prediction: null
     prediction:
-    - name: AsDiscrete
-      threshold: 0.5
-    - name: RemoveSmallObjects
-      min_size: 256
+      - name: AsDiscrete
+        threshold: 0.5
+      - name: RemoveSmallObjects
+        min_size: 256
     label: null
 Output:
   save_dir: "/home/lkreitner/OCTA-seg/results/gan-ves-seg"

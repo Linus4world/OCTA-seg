@@ -23,6 +23,7 @@ from utils.visualizer import Visualizer
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("--config_file", type=str, required=True)
 parser.add_argument("--start_epoch", type=int, default=0)
+parser.add_argument('--split', type=str, default='')
 args = parser.parse_args()
 
 # Read config file
@@ -45,6 +46,9 @@ scaler = torch.cuda.amp.GradScaler(enabled=VAL_AMP)
 device = torch.device(config["General"]["device"])
 task: Task = config["General"]["task"]
 visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT=False)
+
+if "split" in config["Train"]["data"]["real_B"]:
+    config["Train"]["data"]["real_B"]["split"] = config["Train"]["data"]["real_B"]["split"] + args.split + ".txt"
 
 train_loader = get_dataset(config, "train")
 post_pred, post_label = get_post_transformation(config, "train", task)

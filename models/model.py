@@ -140,10 +140,10 @@ def initialize_model_and_optimizer(model: torch.nn.Module, config: dict, args, l
             model.generator.load_state_dict(checkpoint_G['model'])
         else:
             epoch_prefix = f"{args.epoch}_" if args.epoch is not None else "" 
-            checkpoint = torch.load(model_path.replace('best_model', epoch_prefix+f'latest_{config["Test"]["inference"]}_model'))
-            if config["Test"]["inference"] == "S":
+            checkpoint = torch.load(model_path.replace('best_model', epoch_prefix+f'latest_{config["General"]["model"]["inference"]}_model'))
+            if config["General"]["model"]["inference"] == "S":
                 model.segmentor.load_state_dict(checkpoint['model'])
-            elif config["Test"]["inference"] == "G":
+            elif config["General"]["model"]["inference"] == "G":
                 model.generator.load_state_dict(checkpoint['model'])
             else: raise NotImplementedError
         return None

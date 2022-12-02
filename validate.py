@@ -36,7 +36,7 @@ device = torch.device(config["General"]["device"])
 model = define_model(config, phase="val")
 optimizer = initialize_model_and_optimizer(model, config, args, load_best=True, phase="val")
 
-metrics = MetricsManager(task)
+metrics = MetricsManager(task, "val")
 predictions = []
 
 model.eval()

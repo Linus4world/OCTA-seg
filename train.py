@@ -22,6 +22,7 @@ from utils.visualizer import Visualizer, plot_sample
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--config_file', type=str, required=True)
 parser.add_argument('--start_epoch', type=int, default=0)
+parser.add_argument('--split', type=str, default='')
 args = parser.parse_args()
 
 # Read config file
@@ -36,6 +37,13 @@ if "seed" not in config["General"]:
     config["General"]["seed"] = randint(0,1e6)
 set_determinism(seed=config["General"]["seed"])
 
+if args.split != "" and "split" in config["Train"]["data"]["image"]:
+    config["Train"]["data"]["image"]["split"] = config["Train"]["data"]["image"]["split"] + args.split + ".txt"
+    config["Train"]["data"]["label"]["split"] = config["Train"]["data"]["label"]["split"] + args.split + ".txt"
+    config["Validation"]["data"]["image"]["split"] = config["Validation"]["data"]["image"]["split"] + args.split + ".txt"
+    config["Validation"]["data"]["label"]["split"] = config["Validation"]["data"]["label"]["split"] + args.split + ".txt"
+    config["Test"]["data"]["image"]["split"] = config["Test"]["data"]["image"]["split"] + args.split + ".txt"
+
 max_epochs = config["Train"]["epochs"]
 val_interval = config["Train"]["val_interval"]
 VAL_AMP = config["General"]["amp"]
@@ -49,11 +57,12 @@ else:
     USE_SEG_INPUT = False
 visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT=USE_SEG_INPUT)
 
+
 train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')
 test_loader = get_dataset(config, 'test')
 test_loader_iter = iter(test_loader)
-post_pred, post_label = get_post_transformation(config, "train", task, num_classes=config["Data"]["num_classes"])
+post_pred, post_label = get_post_transformation(config, "train", task)#, num_classes=config["Data"]["num_classes"])
 
 model = define_model(config, "train")
 
@@ -106,9 +115,9 @@ for epoch in epoch_tqdm:
             reg=0
         with torch.cuda.amp.autocast():
             outputs = model(inputs)
-            if config["Data"]["num_classes"]==1:
-                outputs=outputs.squeeze(-1)
-                labels=labels.to(dtype=outputs.dtype)
+            # if config["Data"]["num_classes"]==1:
+            outputs=outputs.squeeze(-1)
+            # labels=labels.to(dtype=outputs.dtype)
 
             loss = loss_function(outputs, labels)
             labels = [post_label(i) for i in decollate_batch(labels)]
@@ -144,9 +153,9 @@ for epoch in epoch_tqdm:
                     val_data["label"].to(device),
                 )
                 val_outputs: torch.Tensor = model(val_inputs)
-                if config["Data"]["num_classes"]==1:
-                    val_outputs=val_outputs.squeeze(-1)
-                    val_labels=val_labels.to(dtype=val_outputs.dtype)
+                # if config["Data"]["num_classes"]==1:
+                val_outputs=val_outputs.squeeze(-1)
+                    # val_labels=val_labels.to(dtype=val_outputs.dtype)
                 val_loss += loss_function(val_outputs, val_labels).item()
                 val_labels = [post_label(i) for i in decollate_batch(val_labels)]
                 val_outputs = [post_pred(i) for i in decollate_batch(val_outputs)]
@@ -170,16 +179,16 @@ for epoch in epoch_tqdm:
                 else:
                     visualizer.plot_clf_sample(val_inputs, val_outputs, val_labels, val_data["path"], suffix= None if best_metric>metric_comp else 'best')
 
-            if task == Task.VESSEL_SEGMENTATION:
-                try:
-                    test_data = next(test_loader_iter)
-                except StopIteration:
-                    test_loader_iter = iter(test_loader)
-                    test_data = next(test_loader_iter)
-                val_inputs = test_data["image"].to(device).float()
-                val_outputs = model(val_inputs)
-                val_outputs = [post_pred(i).cpu() for i in decollate_batch(val_outputs)]
-                plot_sample(visualizer.save_dir, val_inputs[0], val_outputs[0], None, test_data["image_path"][0], suffix="test", full_size=True)
+            # if task == Task.VESSEL_SEGMENTATION:
+            #     try:
+            #         test_data = next(test_loader_iter)
+            #     except StopIteration:
+            #         test_loader_iter = iter(test_loader)
+            #         test_data = next(test_loader_iter)
+            #     val_inputs = test_data["image"].to(device).float()
+            #     val_outputs = model(val_inputs)
+            #     val_outputs = [post_pred(i).cpu() for i in decollate_batch(val_outputs)]
+            #     plot_sample(visualizer.save_dir, val_inputs[0], val_outputs[0], None, test_data["image_path"][0], suffix="test", full_size=True)
     visualizer.log_model_params(model, epoch)
 
 total_time = time.time() - total_start

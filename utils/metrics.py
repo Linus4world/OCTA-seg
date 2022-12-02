@@ -171,18 +171,23 @@ class AUCMetric(Metric):
             self.scores.append(compute_roc_auc(y_pred_i.detach().cpu().flatten(), y_i.detach().cpu().flatten()))
 
 class MetricsManager():
-    def __init__(self, task: Task):
+    def __init__(self, task: Task, phase="train"):
         if task == Task.VESSEL_SEGMENTATION or task == Task.AREA_SEGMENTATION or task == Task.GAN_VESSEL_SEGMENTATION:
-            self.metrics = {
-                "DSC": MacroDiceMetric(),
-                "IoU": MeanIoU(include_background=True, reduction="mean"),
-                "ClDice": ClDiceMetric(),
-                "AUC": AUCMetric(),
-                "ACC": AccuracyMetric(),
-                "Recall": Recall(),
-                "Precision": Precision()
-
-            }
+            if phase=="train":
+                self.metrics = {
+                    "DSC": MacroDiceMetric(),
+                    "IoU": MeanIoU(include_background=True, reduction="mean")
+                }
+            else:
+                self.metrics = {
+                    "DSC": MacroDiceMetric(),
+                    "IoU": MeanIoU(include_background=True, reduction="mean"),
+                    "ClDice": ClDiceMetric(),
+                    "AUC": AUCMetric(),
+                    "ACC": AccuracyMetric(),
+                    "Recall": Recall(),
+                    "Precision": Precision()
+                }
             self.comp = "DSC"
         elif task == Task.IMAGE_QUALITY_CLASSIFICATION or task == Task.RETINOPATHY_CLASSIFICATION:
             self.metrics =  {
