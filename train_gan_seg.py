@@ -37,6 +37,8 @@ with open(path, "r") as stream:
 if "seed" not in config["General"]:
     config["General"]["seed"] = randint(0,1e6)
 set_determinism(seed=config["General"]["seed"])
+if "split" in config["Train"]["data"]["real_B"]:
+    config["Train"]["data"]["real_B"]["split"] = config["Train"]["data"]["real_B"]["split"] + args.split + ".txt"
 
 max_epochs = config["Train"]["epochs"]
 save_interval = config["Train"]["save_interval"]
@@ -47,8 +49,6 @@ device = torch.device(config["General"]["device"])
 task: Task = config["General"]["task"]
 visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT=False)
 
-if "split" in config["Train"]["data"]["real_B"]:
-    config["Train"]["data"]["real_B"]["split"] = config["Train"]["data"]["real_B"]["split"] + args.split + ".txt"
 
 train_loader = get_dataset(config, "train")
 post_pred, post_label = get_post_transformation(config, "train", task)

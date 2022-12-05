@@ -55,7 +55,7 @@ Train:
       - real_A
       - real_B
       - real_A_seg
-      # - deep
+      - deep
       minv: 0
       maxv: 1
     - name: EnsureChannelFirstd
