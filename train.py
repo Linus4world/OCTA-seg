@@ -22,6 +22,7 @@ from utils.visualizer import Visualizer, plot_sample
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--config_file', type=str, required=True)
 parser.add_argument('--start_epoch', type=int, default=0)
+parser.add_argument('--epoch', type=str, default='latest')
 parser.add_argument('--split', type=str, default='')
 args = parser.parse_args()
 

@@ -19,9 +19,9 @@ from utils.visualizer import extract_vessel_graph_features, plot_sample, plot_si
 # Parse input arguments
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--config_file', type=str, required=True)
-parser.add_argument('--epoch', type=int, default=None)
+parser.add_argument('--epoch', type=str, default="best")
 args = parser.parse_args()
-epoch_suffix = f"_{args.epoch}" if args.epoch is not None else ""
+epoch_suffix = f"_{args.epoch}"
 
 # Read config file
 path: str = os.path.abspath(args.config_file)
@@ -43,7 +43,7 @@ post_pred, _ = get_post_transformation(config, "test", task,)
 device = torch.device(config["General"]["device"])
 
 model = define_model(config, phase="test")
-_ = initialize_model_and_optimizer(model, config, args, load_best=True, phase="test")
+_ = initialize_model_and_optimizer(model, config, args, phase="test")
 predictions = []
 
 model.eval()

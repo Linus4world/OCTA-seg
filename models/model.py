@@ -3,6 +3,7 @@ import torch
 from models.cut import CUT
 from models.gan_seg_model import GanSegModel
 from utils.metrics import Task
+import os
 
 from models.networks import MODEL_DICT, init_weights
 
@@ -100,12 +101,12 @@ def define_model_OLD(config: dict, phase: Literal["train", "val", "test"]) -> tu
         )
     return model
 
-def initialize_model_and_optimizer(model: torch.nn.Module, config: dict, args, load_best=False, phase="train") -> Union[torch.optim.Optimizer, tuple[torch.optim.Optimizer]]:
+def initialize_model_and_optimizer(model: torch.nn.Module, config: dict, args, phase="train") -> Union[torch.optim.Optimizer, tuple[torch.optim.Optimizer]]:
     if not isinstance(model, torch.nn.Module):
         return None
     
     task = config["General"]["task"]
-    model_path: str = config["Test"]["model_path"]
+    model_path: str = os.path.join(config["Test"]["save_path"], f"{args.epoch}_model.pth")
     if task == Task.GAN_VESSEL_SEGMENTATION or task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
         model: GanSegModel = model
         if phase == "train":
@@ -113,15 +114,15 @@ def initialize_model_and_optimizer(model: torch.nn.Module, config: dict, args, l
             optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=config["Train"]["lr"], betas=(0.5 , 0.999))
             optimizer_S = torch.optim.Adam(model.segmentor.parameters(), lr=config["Train"]["lr"])
             if hasattr(args, "start_epoch") and args.start_epoch>0:
-                checkpoint_G = torch.load(model_path.replace('best_model', 'latest_G_model'))
+                checkpoint_G = torch.load(model_path.replace('model.pth', 'G_model.pth'))
                 model.generator.load_state_dict(checkpoint_G['model'])
                 optimizer_G.load_state_dict(checkpoint_G['optimizer'])
 
-                checkpoint_D = torch.load(model_path.replace('best_model', 'latest_D_model'))
+                checkpoint_D = torch.load(model_path.replace('model.pth', 'D_model.pth'))
                 model.discriminator.load_state_dict(checkpoint_D['model'])
                 optimizer_D.load_state_dict(checkpoint_D['optimizer'])
 
-                checkpoint_S = torch.load(model_path.replace('best_model', 'latest_S_model'))
+                checkpoint_S = torch.load(model_path.replace('model.pth', 'S_model.pth'))
                 model.segmentor.load_state_dict(checkpoint_S['model'])
                 optimizer_S.load_state_dict(checkpoint_S['optimizer'])
             elif task == Task.GAN_VESSEL_SEGMENTATION: 
@@ -135,12 +136,10 @@ def initialize_model_and_optimizer(model: torch.nn.Module, config: dict, args, l
 
             return (optimizer_G,optimizer_D,optimizer_S)
         elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
-            epoch_prefix = f"{args.epoch}_" if args.epoch is not None else "" 
-            checkpoint_G = torch.load(model_path.replace('best_model', epoch_prefix+'latest_G_model'))
+            checkpoint_G = torch.load(model_path.replace('model.pth', 'G_model.pth'))
             model.generator.load_state_dict(checkpoint_G['model'])
         else:
-            epoch_prefix = f"{args.epoch}_" if args.epoch is not None else "" 
-            checkpoint = torch.load(model_path.replace('best_model', epoch_prefix+f'latest_{config["General"]["model"]["inference"]}_model'))
+            checkpoint = torch.load(model_path.replace('model.pth', f'{config["General"]["model"]["inference"]}_model.pth'))
             if config["General"]["model"]["inference"] == "S":
                 model.segmentor.load_state_dict(checkpoint['model'])
             elif config["General"]["model"]["inference"] == "G":
@@ -149,12 +148,12 @@ def initialize_model_and_optimizer(model: torch.nn.Module, config: dict, args, l
         return None
 
     if hasattr(args, "start_epoch") and args.start_epoch>0:
-        checkpoint = torch.load(model_path.replace('best_model', 'latest_model'))
+        checkpoint = torch.load(model_path)
         model.load_state_dict(checkpoint['model'])
         optimizer = torch.optim.Adam(model.parameters(), config["Train"]["lr"], weight_decay=1e-6)
         optimizer.load_state_dict(checkpoint['optimizer'])
         print("Loaded checkpoint from epoch", checkpoint['epoch'])
-    elif load_best:
+    elif phase != "train":
         checkpoint = torch.load(model_path)
         model.load_state_dict(checkpoint['model'])
         optimizer=None

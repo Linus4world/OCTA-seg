@@ -34,7 +34,7 @@ post_pred, post_label = get_post_transformation(config, phase="validation", task
 device = torch.device(config["General"]["device"])
 
 model = define_model(config, phase="val")
-optimizer = initialize_model_and_optimizer(model, config, args, load_best=True, phase="val")
+optimizer = initialize_model_and_optimizer(model, config, args, phase="val")
 
 metrics = MetricsManager(task, "val")
 predictions = []

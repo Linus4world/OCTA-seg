@@ -48,7 +48,7 @@ for config_file in tqdm(config_files):
     device = torch.device(config["General"]["device"])
 
     model = define_model(config)
-    optimizer = initialize_model_and_optimizer(model, config, None, load_best=True)
+    optimizer = initialize_model_and_optimizer(model, config, None, phase="test")
     model.eval()
     with torch.no_grad():
         num_sample=0
