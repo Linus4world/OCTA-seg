@@ -23,7 +23,7 @@ from utils.visualizer import Visualizer
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("--config_file", type=str, required=True)
 parser.add_argument("--start_epoch", type=int, default=0)
-parser.add_argument('--split', type=str, default='')
+parser.add_argument('--split', type=str, default="")
 args = parser.parse_args()
 
 # Read config file
@@ -37,7 +37,7 @@ with open(path, "r") as stream:
 if "seed" not in config["General"]:
     config["General"]["seed"] = randint(0,1e6)
 set_determinism(seed=config["General"]["seed"])
-if "split" in config["Train"]["data"]["real_B"]:
+if "split" in config["Train"]["data"]["real_B"] and args.split!="":
     config["Train"]["data"]["real_B"]["split"] = config["Train"]["data"]["real_B"]["split"] + args.split + ".txt"
 
 max_epochs = config["Train"]["epochs"]

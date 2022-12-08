@@ -11,7 +11,10 @@ def define_model(config: dict, phase: Literal["train", "val", "test"]):
     device = torch.device(config["General"]["device"])
     model_params: dict = config["General"]["model"]
     model_name = model_params.pop("name")
-    model = MODEL_DICT[model_name](**model_params, phase=phase, MODEL_DICT=MODEL_DICT)
+    if config["General"]["task"] == Task.GAN_VESSEL_SEGMENTATION:
+        model_params["phase"]=phase
+        model_params["MODEL_DICT"]=MODEL_DICT
+    model = MODEL_DICT[model_name](**model_params)
     if isinstance(model, torch.nn.Module):
         model = model.to(device)
     return model
