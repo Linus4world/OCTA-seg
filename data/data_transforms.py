@@ -4,10 +4,29 @@ from numpy.random import normal
 import math
 import random
 from PIL import Image
+from models.noise_model import NoiseModel
 
-from monai.networks.nets import DynUNet
-from utils.metrics import Task
 from monai.transforms import *
+
+class NoiseModeld(MapTransform):
+    def __init__(self, keys: tuple[str], allow_missing_keys: bool = False) -> None:
+        self.noise_model = NoiseModel(
+            grid_size = (9,9),
+            lambda_delta = 1,
+            lambda_speckle = 0.7,
+            lambda_gamma = 0.3,
+            alpha=0.2
+        )
+        super().__init__(keys, allow_missing_keys)
+
+    def __call__(self, data):
+        for key in self.keys:
+            img = data[key]
+            deep = data["deep"]
+            d = self.noise_model.forward(img.unsqueeze(0), deep, False).squeeze(0).detach()
+            data[key]=d
+        del data["deep"]
+        return data
 
 class RandomDecreaseResolutiond(MapTransform):
     def __init__(self, keys: tuple[str], p=1, max_factor=0.25) -> None:
@@ -86,44 +105,6 @@ class FuseImageSegmentationd():
         data[self.target_label]=fused
         return data
 
-class VesselSegmentationd(MapTransform):
-    """
-    NOT USED
-    """
-    def __init__(self, keys: tuple[str], target_key: str, config: dict, get_post_transformation) -> None:
-        assert len(keys)==1
-        self.USE_SEG_INPUT = config["Data"]["use_segmentation"]
-        model_path: str = config["Train"]["model_path"]
-        num_layers = config["General"]["num_layers"]
-        kernel_size = config["General"]["kernel_size"]
-        self.device = "cpu"#torch.device(config["General"]["device"])
-        self.target_key = target_key
-        super().__init__(keys, False)
-
-        if self.USE_SEG_INPUT:
-            self.segmentation_model = DynUNet(
-                spatial_dims=2,
-                in_channels=1,
-                out_channels=1,
-                kernel_size=(3, *[kernel_size]*num_layers,3),
-                strides=(1,*[2]*num_layers,1),
-                upsample_kernel_size=(1,*[2]*num_layers,1),
-            ).to(self.device)
-            checkpoint = torch.load(model_path)
-            self.segmentation_model.load_state_dict(checkpoint['model'])
-            self.segmentation_model.eval()
-            self.post_itermediate, _ = get_post_transformation(Task.VESSEL_SEGMENTATION)
-
-    def __call__(self, data: dict):
-        if self.USE_SEG_INPUT:
-            img: torch.Tensor = data[self.keys[0]]
-
-            with torch.no_grad():
-                seg = self.segmentation_model(img.to(device=self.device).unsqueeze(0))
-                seg = [self.post_itermediate(inter) for inter in seg][0].cpu()
-            data[self.target_key] = seg
-        return data
-
 class AddRandomErasingd(MapTransform):
     def __init__(self, keys: tuple[str], prob = 1, min_area=0.04, max_area = 0.25):
         super().__init__(keys, True)
@@ -185,6 +166,7 @@ class AddLineArtifact(MapTransform):
             data[key] = img
         return data
 
+@DeprecationWarning
 class AddRealNoised(MapTransform):
     """
     Generate Background signal caused by capillary vessels using simulated deep vascular complex (DVC) maps
@@ -291,6 +273,7 @@ class AddRealNoised(MapTransform):
             data[key] = img
         return data
 
+@DeprecationWarning
 class AddRandomNoised(MapTransform):
     """
     @Depricated Use the newer AddRealNoised\n
@@ -371,27 +354,27 @@ class SplitImageLabeld(MapTransform):
         data[self.keys[1]] = torch.clone(data[self.keys[0]])
         return data
 
-class ToTensor(Transform):
-    """
-    Adds an additional channel dimension to the data tensor
-    """
-    def __call__(self, data: torch.Tensor) -> torch.Tensor:
-        return data.unsqueeze(0)
+# class ToTensor(Transform):
+#     """
+#     Adds an additional channel dimension to the data tensor
+#     """
+#     def __call__(self, data: torch.Tensor) -> torch.Tensor:
+#         return data.unsqueeze(0)
 
-class Resized(MapTransform):
-    """
-    Resize image to the given shape using bilinear interpolation
-    """
-    def __init__(self, keys: list[str], shape: tuple[int]) -> None:
-        super().__init__(keys=keys)
-        self.shape = shape
+# class Resized(MapTransform):
+#     """
+#     Resize image to the given shape using bilinear interpolation
+#     """
+#     def __init__(self, keys: list[str], shape: tuple[int]) -> None:
+#         super().__init__(keys=keys)
+#         self.shape = shape
 
-    def __call__(self, data) -> torch.Tensor:
-        for key in self.keys:
-            if key in data:
-                d = data[key]
-                data[key] = torch.nn.functional.interpolate(d.unsqueeze(0), size=self.shape, mode='bilinear').squeeze(0)
-        return data
+#     def __call__(self, data) -> torch.Tensor:
+#         for key in self.keys:
+#             if key in data:
+#                 d = data[key]
+#                 data[key] = torch.nn.functional.interpolate(d.unsqueeze(0), size=self.shape, mode='bilinear').squeeze(0)
+#         return data
 
 class RandCropOrPadd(MapTransform):
     """

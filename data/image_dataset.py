@@ -9,7 +9,7 @@ import numpy as np
 from monai.data.meta_obj import set_track_meta
 
 from utils.metrics import Task
-from utils.unalignedZipDataset import UnalignedZipDataset
+from data.unalignedZipDataset import UnalignedZipDataset
 set_track_meta(False)
 
 def get_custom_file_paths(folder, name):
@@ -209,7 +209,7 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
         else:
             A_paths = image_paths
             image_paths = None
-        data_set = UnalignedZipDataset(A_paths, image_paths, None, transform, phase)
+        data_set = UnalignedZipDataset(A_paths, image_paths, None, transform, phase, config["General"]["model"]["inference"])
         loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
         return loader
     elif task == Task.RETINOPATHY_CLASSIFICATION or task == Task.IMAGE_QUALITY_CLASSIFICATION:

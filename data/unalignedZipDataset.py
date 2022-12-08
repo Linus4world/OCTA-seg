@@ -3,12 +3,12 @@ from monai.transforms import Compose
 import random
 
 class UnalignedZipDataset(Dataset):
-    def __init__(self, data: dict, transform: Compose, phase = "train") -> None:
+    def __init__(self, data: dict, transform: Compose, phase = "train", inference="S") -> None:
         super().__init__()
-        A_paths = data.get("real_A")
-        A_seg_paths = data.get("real_A_seg")
-        B_paths = data.get("real_B")
-        deep = data.get("deep")
+        A_paths = data.get("real_A") if phase == "train" or inference == "G" else None
+        A_seg_paths = data.get("real_A_seg") if phase == "train" else None
+        B_paths = data.get("real_B")  if phase == "train" or inference == "S" else None
+        deep = data.get("deep") if phase == "train" or inference == "G" else None
         self.A_paths = A_paths
         self.B_paths = B_paths
         self.A_seg_paths = A_seg_paths
