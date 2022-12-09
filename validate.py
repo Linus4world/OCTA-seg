@@ -14,6 +14,7 @@ from utils.metrics import MetricsManager, Task
 # Parse input arguments
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--config_file', type=str, required=True)
+parser.add_argument('--epoch', type=str, default='best')
 args = parser.parse_args()
 
 # Read config file

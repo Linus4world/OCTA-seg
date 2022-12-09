@@ -109,7 +109,7 @@ def initialize_model_and_optimizer(model: torch.nn.Module, config: dict, args, p
         return None
     
     task = config["General"]["task"]
-    model_path: str = os.path.join(config["Test"]["save_path"], f"{args.epoch}_model.pth")
+    model_path: str = os.path.join(config["Output"]["save_dir"], f"{args.epoch}_model.pth")
     if task == Task.GAN_VESSEL_SEGMENTATION or task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
         model: GanSegModel = model
         if phase == "train":

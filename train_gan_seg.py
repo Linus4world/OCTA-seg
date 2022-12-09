@@ -23,6 +23,7 @@ from utils.visualizer import Visualizer
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("--config_file", type=str, required=True)
 parser.add_argument("--start_epoch", type=int, default=0)
+parser.add_argument("--epoch", type=str, default="latest")
 parser.add_argument('--split', type=str, default="")
 args = parser.parse_args()
 
@@ -67,7 +68,7 @@ with torch.no_grad():
     else:
         visualizer.save_model_architecture(model, inputs)
 
-(optimizer_G, optimizer_D, optimizer_S ) = initialize_model_and_optimizer(model, config, args)
+(optimizer_G, optimizer_D, optimizer_S ) = initialize_model_and_optimizer(model, config, args, phase="train")
 
 loss_name_dg = config["Train"]["loss_dg"]
 loss_name_s = config["Train"]["loss_s"]

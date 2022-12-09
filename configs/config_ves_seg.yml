@@ -35,7 +35,6 @@ Train:
     # - /home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_00135
     # - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_OLD"
       suffix: .png
-      
   epochs: 30
   epochs_decay: 0
   val_interval: 1
@@ -215,8 +214,7 @@ Test:
       folder: /home/lkreitner/OCTA-seg/datasets/Munich_OCTA
       # folder: /home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainB
       suffix: .png
-      # suffix: .bmp
-  num_samples: 10
+  num_samples: 5
   save_images: false
   data_augmentation:
   - name: LoadImaged
@@ -251,6 +249,15 @@ Test:
     keys:
     - image
     dtype: dtype
+  post_processing:
+    prediction:
+      - name: Activations
+        sigmoid: true
+      - name: AsDiscrete
+        threshold: 0.5
+      - name: RemoveSmallObjects
+        min_size: 46
+    label: null
 Output:
   save_dir: "/home/lkreitner/OCTA-seg/results/ves-seg"
   save_to_disk: true
