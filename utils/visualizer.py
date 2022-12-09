@@ -218,10 +218,10 @@ class Visualizer():
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict()
             },
-            os.path.join(self.save_dir, f"{prefix}_model.pth"),
+            os.path.join(self.save_dir, f"latest_{prefix}_model.pth"),
         )
         if save_epoch:
-            copyfile(os.path.join(self.save_dir, f"{prefix}_model.pth"), os.path.join(self.save_dir, f"{epoch}_{prefix}_model.pth"))
+            copyfile(os.path.join(self.save_dir, f"latest_{prefix}_model.pth"), os.path.join(self.save_dir, f"{epoch}_{prefix}_model.pth"))
 
     def save_tune_checkpoint(path: str, d: dict):
         path = os.path.join(path, "checkpoint.pth")
