@@ -177,9 +177,13 @@ for epoch in epoch_tqdm:
 
     epoch_tqdm.set_description(f"avg train loss: {epoch_loss:.4f}")
 
-    visualizer.save_model(model.generator, optimizer_G, epoch+1, "G", save_epoch = (epoch + 1) % save_interval == 0)
-    visualizer.save_model(model.discriminator, optimizer_D, epoch+1, "D", save_epoch = (epoch + 1) % save_interval == 0)
-    visualizer.save_model(model.segmentor, optimizer_S, epoch+1, "S", save_epoch = (epoch + 1) % save_interval == 0)
+    visualizer.save_model(model.generator, optimizer_G, epoch+1, "latest_G")
+    visualizer.save_model(model.discriminator, optimizer_D, epoch+1, "latest_D")
+    visualizer.save_model(model.segmentor, optimizer_S, epoch+1, "latest_S")
+    if (epoch + 1) % save_interval == 0:
+        visualizer.save_model(model.generator, optimizer_G, epoch+1, f"{epoch+1}_G")
+        visualizer.save_model(model.discriminator, optimizer_D, epoch+1, f"{epoch+1}_D")
+        visualizer.save_model(model.segmentor, optimizer_S, epoch+1, f"{epoch+1}_S")
 
     visualizer.plot_losses_and_metrics(epoch_metrics, epoch)
     if task == Task.GAN_VESSEL_SEGMENTATION:
