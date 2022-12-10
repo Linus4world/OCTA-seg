@@ -196,12 +196,17 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
         max_length = max([len(l) for l in data.values()])
         for k,v in data.items():
             data[k] = np.resize(np.array(v), max_length).tolist()
-        # TODO: Test this
         train_files = [dict(zip(data, t)) for t in zip(*data.values())]
     elif task == Task.GAN_VESSEL_SEGMENTATION:
-        data_set = UnalignedZipDataset(data, transform, phase)
-        loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
-        return loader
+        if phase == "validation":
+            max_length = max([len(l) for l in data.values()])
+            for k,v in data.items():
+                data[k] = np.resize(np.array(v), max_length).tolist()
+            train_files = [dict(zip(data, t)) for t in zip(*data.values())]
+        else:
+            data_set = UnalignedZipDataset(data, transform, phase)
+            loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
+            return loader
     elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
         # TODO
         if phase != "test":
@@ -209,7 +214,7 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
         else:
             A_paths = image_paths
             image_paths = None
-        data_set = UnalignedZipDataset(A_paths, image_paths, None, transform, phase, config["General"]["model"]["inference"])
+        data_set = UnalignedZipDataset(A_paths, image_paths, None, transform, phase, config["General"]["inference"])
         loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
         return loader
     elif task == Task.RETINOPATHY_CLASSIFICATION or task == Task.IMAGE_QUALITY_CLASSIFICATION:

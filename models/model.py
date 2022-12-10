@@ -14,6 +14,7 @@ def define_model(config: dict, phase: Literal["train", "val", "test"]):
     if config["General"]["task"] == Task.GAN_VESSEL_SEGMENTATION:
         model_params["phase"]=phase
         model_params["MODEL_DICT"]=MODEL_DICT
+        model_params["inference"] = config["General"]["inference"]
     model = MODEL_DICT[model_name](**model_params)
     if isinstance(model, torch.nn.Module):
         model = model.to(device)
@@ -70,7 +71,7 @@ def define_model_OLD(config: dict, phase: Literal["train", "val", "test"]) -> tu
         segmentor = None
         discriminator = None
         generator = None
-        if phase != "test" or config["Test"]["inference"] == "S":
+        if phase != "test" or config["General"]["inference"] == "S":
             segmentor=MODEL_DICT[config["General"]["model_s"]](
                 spatial_dims=2,
                 in_channels=1,
@@ -79,7 +80,7 @@ def define_model_OLD(config: dict, phase: Literal["train", "val", "test"]) -> tu
                 strides=(1,*[2]*num_layers,1),
                 upsample_kernel_size=(1,*[2]*num_layers,1)
             ).to(device)
-        if phase != "test" or config["Test"]["inference"] == "G":
+        if phase != "test" or config["General"]["inference"] == "G":
             generator = MODEL_DICT[config["General"]["model_g"]]().to(device)
         if phase != "test":
             discriminator=MODEL_DICT[config["General"]["model_d"]]().to(device)
@@ -142,10 +143,10 @@ def initialize_model_and_optimizer(model: torch.nn.Module, config: dict, args, p
             checkpoint_G = torch.load(model_path.replace('model.pth', 'G_model.pth'))
             model.generator.load_state_dict(checkpoint_G['model'])
         else:
-            checkpoint = torch.load(model_path.replace('model.pth', f'{config["General"]["model"]["inference"]}_model.pth'))
-            if config["General"]["model"]["inference"] == "S":
+            checkpoint = torch.load(model_path.replace('model.pth', f'{config["General"]["inference"]}_model.pth'))
+            if config["General"]["inference"] == "S":
                 model.segmentor.load_state_dict(checkpoint['model'])
-            elif config["General"]["model"]["inference"] == "G":
+            elif config["General"]["inference"] == "G":
                 model.generator.load_state_dict(checkpoint['model'])
             else: raise NotImplementedError
         return None

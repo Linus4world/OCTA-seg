@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 import random
+from math import ceil
 
 class GanSegModel(nn.Module):
 
@@ -53,7 +54,8 @@ class GanSegModel(nn.Module):
             return fake_B_seg
         else:
             if self.segmentor is not None:
-                return self.segmentor(torch.nn.functional.interpolate(input, scale_factor=4, mode="bilinear"))
+                up_shape = (8*ceil(input.shape[2] / 2), 8*ceil(input.shape[3] / 2))
+                return self.segmentor(torch.nn.functional.interpolate(input, size=up_shape, mode="bilinear"))
             else:
                 return self.generator(input)
 
@@ -77,13 +79,14 @@ class GanSegModel(nn.Module):
         self.discriminator.requires_grad_(False)
         pred_fake_B = self.discriminator(fake_B)
 
-        real_B_seg = self.segmentor(torch.nn.functional.interpolate(real_B, scale_factor=4, mode="bilinear"))
+        up_shape = (8*ceil(real_B.shape[2] / 2), 8*ceil(real_B.shape[3] / 2))
+        real_B_seg = self.segmentor(torch.nn.functional.interpolate(real_B, size=up_shape, mode="bilinear"))
         if self.compute_identity_seg:
-            idt_B_seg = self.segmentor(torch.nn.functional.interpolate(idt_B, scale_factor=4, mode="bilinear"))
+            idt_B_seg = self.segmentor(torch.nn.functional.interpolate(idt_B, size=up_shape, mode="bilinear"))
         else:
             idt_B_seg = [None]
         fake_B_ = self.control_point_brightness_augmentation(fake_B)
-        fake_B_seg = self.segmentor(torch.nn.functional.interpolate(fake_B_, scale_factor=4, mode="bilinear"))
+        fake_B_seg = self.segmentor(torch.nn.functional.interpolate(fake_B_, size=up_shape, mode="bilinear"))
         return pred_fake_B, fake_B_seg, real_B_seg, idt_B_seg
 
     def apply(self, init_func):

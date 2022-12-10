@@ -10,3 +10,6 @@ voreen/*
 
 images/
 TODO.md
+
+*.err
+*.out
