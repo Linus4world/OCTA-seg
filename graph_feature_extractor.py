@@ -3,6 +3,7 @@ import nibabel as nib
 from PIL import Image
 import numpy as np
 from utils.voreen_vesselgraphextraction import extract_vessel_graph
+from utils.visualizer import graph_file_to_img, node_edges_to_graph
 
 voreen_config = {
     "image_file": "",
@@ -25,8 +26,8 @@ def get_custom_file_paths(folder, name):
     return image_file_paths
 
 
-image_dir = "/home/lkreitner/DRAC_results/DRAC_C/seg/"
-output_dir = "/home/lkreitner/DRAC_results/DRAC_C/graph_features/"
+image_dir = "/home/lkreitner/OCTA-seg/voreen_test/"
+output_dir = "/home/lkreitner/OCTA-seg/voreen_test/"
 if not os.path.isdir(output_dir):
     os.mkdir(output_dir)
 
@@ -41,7 +42,8 @@ for image_path in image_paths:
         os.mkdir(voreen_config["tempdir"])
     nii_path = os.path.join(voreen_config["tempdir"], f'{image_name}.nii')
     nib.save(img_nii, nii_path)
-    extract_vessel_graph(nii_path, 
+
+    clean_seg = extract_vessel_graph(nii_path, 
         output_dir+"/",
         voreen_config["tempdir"],
         voreen_config["cachedir"],
@@ -50,3 +52,8 @@ for image_path in image_paths:
         voreen_config["voreen_tool_path"],
         name=image_name
     )
+    graph_file = os.path.join(output_dir, f'{image_name}_graph.png')
+    nodes_file = os.path.join(output_dir, f'{image_name}_nodes.csv')
+    edges_file = os.path.join(output_dir, f'{image_name}_edges.csv')
+    graph_img = node_edges_to_graph(nodes_file, edges_file, a.shape[:2])
+    Image.fromarray((graph_img*255).astype(np.uint8)).save(graph_file)

@@ -14,6 +14,7 @@ import math
 from PIL import Image
 from utils.metrics import Task
 from utils.voreen_vesselgraphextraction import extract_vessel_graph
+from utils.line_drawing_alg import draw_line
 
 class Visualizer():
     """
@@ -470,10 +471,10 @@ def eukledian_dist(pos1: tuple[float], pos2: tuple[float]) -> float:
     dist = math.sqrt(sum(dist))
     return dist
 
-def graph_file_to_img(filepath: str, shape: tuple[int]):
+def graph_file_to_img(filepath: str, shape: tuple[int]) -> np.ndarray:
     with open(filepath) as file:
         j = json.load(file)
-    img = torch.zeros(shape)
+    img = np.zeros(shape)
     max = math.sqrt(0.5)
 
     for edge in j["graph"]["edges"]:
@@ -495,6 +496,25 @@ def graph_file_to_img(filepath: str, shape: tuple[int]):
         # if "voxels_" in node:
         for voxel in node["voxels_"]:
             img[int(voxel[0])-1:int(voxel[0])+2, int(voxel[1])-1:int(voxel[1])+2] = 0.5
+    return img
+
+def node_edges_to_graph(nodes_file_path: str, edges_file_path: str, shape: tuple[int]) -> np.ndarray:
+    nodes = dict()
+    with open(nodes_file_path, newline='') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=";")
+        for row in reader:
+            nodes[row["id"]] = [float(row["pos_x"]), float(row["pos_y"])]
+    
+    img = np.zeros(shape)
+    cnt = 0
+    with open(edges_file_path, newline='') as csvfile:
+        reader = csv.DictReader(csvfile,delimiter=";")
+        for row in reader:
+            p1 = nodes[row["node1id"]]
+            p2 = nodes[row["node2id"]]
+            if row["node1id"]=="2731" or row["node2id"] == "2731":
+                cnt+=1
+            draw_line(img,p1,p2)
     return img
 
 def save_prediction_csv(save_dir: str, predictions: list[list]):
