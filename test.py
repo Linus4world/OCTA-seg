@@ -31,8 +31,10 @@ with open(path, "r") as stream:
     else:
         config = yaml.safe_load(stream)
 
-if not os.path.exists(config["Test"]["save_dir"]+epoch_suffix):
-    os.makedirs(config["Test"]["save_dir"]+epoch_suffix)
+inference_suffix = "_"+config["General"]["inference"] if "inference" in config["General"] else ""
+save_dir = config["Test"]["save_dir"]+epoch_suffix+inference_suffix
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)
 set_determinism(seed=0)
 
 task: Task = config["General"]["task"]
@@ -62,7 +64,7 @@ with torch.no_grad():
             # clean_seg = extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)
             # graph_file = os.path.join(config["Test"]["save_dir"], f'sample_{num_sample}_graph.json')
             # graph_img = graph_file_to_img(graph_file, val_outputs[0].shape[-2:])
-            inference_mode = config["Test"].get("inference") or "segmentation"
+            inference_mode = config["General"].get("inference") or "pred"
             image_name: str = test_data[input_key+"_path"][0].split("/")[-1]
             plot_sample(config["Test"]["save_dir"]+epoch_suffix, inputs[0], outputs[0], None, test_data[input_key+"_path"][0], suffix=f"{inference_mode}_{image_name.split('.')[0]}", full_size=True)
             

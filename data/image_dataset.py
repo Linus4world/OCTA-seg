@@ -204,7 +204,7 @@ def get_dataset(config: dict, phase: str, batch_size=None) -> DataLoader:
                 data[k] = np.resize(np.array(v), max_length).tolist()
             train_files = [dict(zip(data, t)) for t in zip(*data.values())]
         else:
-            data_set = UnalignedZipDataset(data, transform, phase)
+            data_set = UnalignedZipDataset(data, transform, phase, config["General"]["inference"])
             loader = DataLoader(data_set, batch_size=batch_size or config[phase.capitalize()]["batch_size"], shuffle=phase!="test", num_workers=8, pin_memory=torch.cuda.is_available())
             return loader
     elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:

@@ -61,9 +61,10 @@ visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT=USE_SEG_INPUT)
 
 train_loader = get_dataset(config, 'train')
 val_loader = get_dataset(config, 'validation')
-test_loader = get_dataset(config, 'test')
-test_loader_iter = iter(test_loader)
+# test_loader = get_dataset(config, 'test')
+# test_loader_iter = iter(test_loader)
 post_pred, post_label = get_post_transformation(config, "train", task)#, num_classes=config["Data"]["num_classes"])
+post_pred_val, post_label_val = get_post_transformation(config, "validation", task)#, num_classes=config["Data"]["num_classes"])
 
 model = define_model(config, "train")
 
@@ -158,8 +159,8 @@ for epoch in epoch_tqdm:
                 val_outputs=val_outputs.squeeze(-1)
                     # val_labels=val_labels.to(dtype=val_outputs.dtype)
                 val_loss += loss_function(val_outputs, val_labels).item()
-                val_labels = [post_label(i) for i in decollate_batch(val_labels)]
-                val_outputs = [post_pred(i) for i in decollate_batch(val_outputs)]
+                val_labels = [post_label_val(i) for i in decollate_batch(val_labels)]
+                val_outputs = [post_pred_val(i) for i in decollate_batch(val_outputs)]
                 metrics(y_pred=val_outputs, y=val_labels)
 
             epoch_metrics["loss"][f"val_{loss_name}"] = val_loss/step

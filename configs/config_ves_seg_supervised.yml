@@ -16,13 +16,13 @@ General:
 Train:
   data:
     image:
-      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images
+      folder: /home/lkreitner/OCTA-seg/results/gan-ves-seg/20221209_235844/test_100_G
       suffix: .png
-      split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/train_
+      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/train_
     label:
-      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/segmented_images
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025_OCTA-500
       suffix: .png
-      split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/train_
+      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/train_
   epochs: 60
   epochs_decay: 0
   val_interval: 1
@@ -51,9 +51,9 @@ Train:
       keys:
       - image
       - label
-      shape:
-      - 368
-      - 368
+      spatial_size:
+      - 1216
+      - 1216
     - name: RandFlipd
       keys:
       - image
@@ -105,13 +105,13 @@ Validation:
   batch_size: 4
   data:
     image:
-      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images
+      folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500/images
       suffix: .png
-      split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_
+      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_
     label:
-      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/segmented_images
+      folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500/segmentations
       suffix: .png
-      split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_
+      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_
   data_augmentation:
     - name: LoadImaged
       keys:
@@ -133,9 +133,9 @@ Validation:
       keys:
       - image
       - label
-      shape:
-      - 368
-      - 368
+      spatial_size:
+      - 1216
+      - 1216
     - name: Rotate90d
       keys:
       - image
@@ -192,9 +192,9 @@ Test:
     - name: Resized
       keys:
       - image
-      shape:
-      - 368
-      - 368
+      spatial_size:
+      - 1216
+      - 1216
     - name: Rotate90d
       keys:
       - image
