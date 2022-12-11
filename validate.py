@@ -56,5 +56,5 @@ with torch.no_grad():
             val_labels = [post_label(i) for i in decollate_batch(val_labels)]
             metrics(val_outputs, val_labels)
                 
-        metrics = {k: float(str(round(v, 4))) for k,v in metrics.aggregate_and_reset("val").items()}
+        metrics = {k: float(str(round(v, 3))) for k,v in metrics.aggregate_and_reset("val").items()}
         print(f'Metrics: {metrics}')
