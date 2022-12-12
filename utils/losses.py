@@ -290,7 +290,7 @@ def get_loss_function_by_name(name: str, config: dict, scaler: GradScaler=None, 
         weight = None
     loss_map = {
         # "AtLoss": AtLoss(scaler, loss, None, 200/255, 1, alpha=1.25 * (100/255), grad_align_cos_lambda=0),
-        "AtLoss": ANTLoss(scaler, loss, (8,8)),
+        "AtLoss": ANTLoss(scaler, loss, (3,3)),
         "clDiceLoss": clDiceLoss(alpha=config["Train"]["lambda_cl_dice"] if "lambda_cl_dice" in config["Train"] else 0),
         "DiceBCELoss": DiceBCELoss(True),
         "clDiceBceLoss": clDiceBceLoss(lambda_dice=0.4, lambda_cldice=0.1, lambda_bce=0.5, sigmoid=True),

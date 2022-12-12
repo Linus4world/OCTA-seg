@@ -9,13 +9,21 @@ from models.noise_model import NoiseModel
 from monai.transforms import *
 
 class NoiseModeld(MapTransform):
-    def __init__(self, keys: tuple[str], allow_missing_keys: bool = False) -> None:
+    def __init__(self,
+        keys: tuple[str],
+        allow_missing_keys: bool = False,
+        grid_size=(9,9),
+        lambda_delta = 1,
+        lambda_speckle = 0.7,
+        lambda_gamma = 0.3,
+        alpha=0.2
+    ) -> None:
         self.noise_model = NoiseModel(
-            grid_size = (9,9),
-            lambda_delta = 1,
-            lambda_speckle = 0.7,
-            lambda_gamma = 0.3,
-            alpha=0.2
+            grid_size = grid_size,
+            lambda_delta = lambda_delta,
+            lambda_speckle = lambda_speckle,
+            lambda_gamma = lambda_gamma,
+            alpha=alpha
         )
         super().__init__(keys, allow_missing_keys)
 
@@ -25,7 +33,7 @@ class NoiseModeld(MapTransform):
             deep = data["deep"]
             d = self.noise_model.forward(img.unsqueeze(0), deep, False).squeeze(0).detach()
             data[key]=d
-        del data["deep"]
+        # del data["deep"]
         return data
 
 class RandomDecreaseResolutiond(MapTransform):

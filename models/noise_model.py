@@ -46,10 +46,10 @@ class ControlPointBetaNoise(torch.nn.Module):
             # std_direction = abs(torch.sign(mean_N - self.N.data) - torch.sign(self.N.grad.detach())) / 2
             # std_control_points =  torch.nn.functional.interpolate(std_direction, self.control_point_shape, mode=self.mode)
 
-            # difference = (torch.clamp(posterior, *self.mean_interval) - mean_N)**2
-            # std_control_points = torch.sqrt(torch.clamp(torch.nn.functional.interpolate(difference, self.control_point_shape, mode=self.mode), 1e-6, 0.25))
+            difference = (torch.clamp(posterior, *self.mean_interval) - mean_N)**2
+            std_control_points = torch.sqrt(torch.clamp(torch.nn.functional.interpolate(difference, self.control_point_shape, mode=self.mode), 1e-6, 0.25))
 
-            std_control_points: torch.Tensor = t.clone()-1e-6
+            # std_control_points: torch.Tensor = t.clone()-1e-6
 
             std_N = torch.nn.functional.interpolate(std_control_points, input.shape[-2:], mode=self.mode)
             std_N = torch.clamp(std_N, torch.tensor(0.01, device=t.device),t.sqrt()-1e-6)
@@ -69,7 +69,7 @@ class ControlPointBetaNoise(torch.nn.Module):
         return self.N
 
 class NoiseModel(torch.nn.Module):
-    def __init__(self, grid_size=(8,8), lambda_delta = 1, lambda_speckle = 0.5, lambda_gamma=0.01, alpha=0.25) -> None:
+    def __init__(self, grid_size=(9,9), lambda_delta = 1, lambda_speckle = 0.5, lambda_gamma=0.01, alpha=0.25) -> None:
         super().__init__()
         self.grid_size = grid_size
         self.vessel_noise = ControlPointBetaNoise(self.grid_size)
@@ -80,7 +80,7 @@ class NoiseModel(torch.nn.Module):
         self.alpha = alpha
 
     def forward(self, I: torch.Tensor, I_d: torch.Tensor, adversarial: bool) -> torch.Tensor:
-        I_new = torch.nn.functional.interpolate(I, size=(304,304), mode="bilinear")
+        I_new = torch.nn.functional.interpolate(I, scale_factor=0.25, mode="bilinear")
         Delta = self.vessel_noise.forward(I_new, adversarial)
         N = self.specle_noise(I_new, adversarial)
         if not adversarial:
@@ -101,4 +101,4 @@ class NoiseModel(torch.nn.Module):
             
             Gamma = torch.nn.functional.interpolate(self.control_points_gamma, I_new.shape[-2:], mode="bicubic")
             I_new = torch.pow(I_new+1e-6, Gamma)
-            return torch.nn.functional.interpolate(I_new, size=(1216,1216), mode="bilinear")
+            return torch.nn.functional.interpolate(I_new, size=I.shape[2:], mode="bilinear")
