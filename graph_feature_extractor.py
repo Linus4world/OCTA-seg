@@ -26,8 +26,8 @@ def get_custom_file_paths(folder, name):
     return image_file_paths
 
 
-image_dir = "/home/lkreitner/OCTA-seg/voreen_test/"
-output_dir = "/home/lkreitner/OCTA-seg/voreen_test/"
+image_dir = "/home/shared/OCTA_analysis/Cairo/GAN-seg_latest/"
+output_dir = "/home/shared/OCTA_analysis/Cairo/GAN-seg_latest/"
 if not os.path.isdir(output_dir):
     os.mkdir(output_dir)
 
@@ -53,6 +53,8 @@ for image_path in image_paths:
         name=image_name
     )
     graph_file = os.path.join(output_dir, f'{image_name}_graph.png')
+    # graph_filter_img = graph_file_to_img(graph_file.replace(".png", ".json"), a.shape[:2])
+    # Image.fromarray((graph_filter_img*255).astype(np.uint8)).save(graph_file.replace(".png", "filtered_.png"))
     nodes_file = os.path.join(output_dir, f'{image_name}_nodes.csv')
     edges_file = os.path.join(output_dir, f'{image_name}_edges.csv')
     graph_img = node_edges_to_graph(nodes_file, edges_file, a.shape[:2])

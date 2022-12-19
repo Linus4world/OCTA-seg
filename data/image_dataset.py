@@ -12,12 +12,12 @@ from utils.metrics import Task
 from data.unalignedZipDataset import UnalignedZipDataset
 set_track_meta(False)
 
-def get_custom_file_paths(folder, name):
+def get_custom_file_paths(folder: str, name: str):
     image_file_paths = []
     for root, _, filenames in os.walk(folder):
-        filenames = sorted(filenames)
+        filenames: list[str] = sorted(filenames)
         for filename in filenames:
-            if filename.endswith(name):
+            if filename.lower().endswith(name.lower()):
                 file_path = os.path.join(root, filename)
                 image_file_paths.append(file_path)
     return image_file_paths

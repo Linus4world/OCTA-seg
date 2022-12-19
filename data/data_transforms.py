@@ -5,8 +5,18 @@ import math
 import random
 from PIL import Image
 from models.noise_model import NoiseModel
+import numpy as np
 
 from monai.transforms import *
+
+class ToGrayScaled(MapTransform):
+    def __init__(self, keys: tuple[str], allow_missing_keys: bool = False) -> None:
+        super().__init__(keys, allow_missing_keys)
+
+    def __call__(self, data):
+        for key in self.keys:
+            data[key] = torch.tensor(np.array(Image.fromarray(data[key].numpy().astype(np.uint8)).convert("L")).astype(np.float32))
+        return data
 
 class NoiseModeld(MapTransform):
     def __init__(self,
@@ -62,8 +72,9 @@ class AddRandomGaussianNoiseChanneld(MapTransform):
             if key in data:
                 img = data[key]
                 noise = data["deep"] if "deep" in data else torch.rand_like(img)
+                speckle_noise = np.random.uniform(0,1,img.shape)
                 # img = torch.cat((img, noise), dim=0)
-                img = torch.maximum(img, noise)
+                img = torch.maximum(img, noise*speckle_noise)
                 data[key] = img
         if "deep" in data:
             del data["deep"]

@@ -17,6 +17,7 @@ from data.image_dataset import get_dataset, get_post_transformation
 from utils.metrics import MetricsManager, Task
 from utils.losses import get_loss_function_by_name
 from utils.visualizer import Visualizer, plot_sample
+import copy
 
 # Parse input arguments
 parser = argparse.ArgumentParser(description='')
@@ -56,7 +57,6 @@ if task != Task.VESSEL_SEGMENTATION:
     USE_SEG_INPUT = config["Data"]["use_segmentation"] or config["Data"]["enhance_vessels"]
 else:
     USE_SEG_INPUT = False
-visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT=USE_SEG_INPUT)
 
 
 train_loader = get_dataset(config, 'train')
@@ -66,11 +66,12 @@ val_loader = get_dataset(config, 'validation')
 post_pred, post_label = get_post_transformation(config, "train", task)#, num_classes=config["Data"]["num_classes"])
 post_pred_val, post_label_val = get_post_transformation(config, "validation", task)#, num_classes=config["Data"]["num_classes"])
 
-model = define_model(config, "train")
+model = define_model(copy.deepcopy(config), "train")
 
 with torch.no_grad():
     inputs = next(iter(train_loader))["image"].to(device=device, dtype=torch.float32)
-    visualizer.save_model_architecture(model, inputs)
+visualizer = Visualizer(config, args.start_epoch>0, USE_SEG_INPUT=USE_SEG_INPUT)
+visualizer.save_model_architecture(model, inputs)
 
 optimizer = initialize_model_and_optimizer(model, config, args)
 

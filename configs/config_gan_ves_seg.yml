@@ -3,6 +3,7 @@ General:
   amp: true
   device: cuda:0
   task: gan-ves-seg
+  inference: S
   model:
     name: GanSegModel
     model_g:
@@ -19,7 +20,6 @@ General:
       upsample_kernel_size: [1,2,2,2,1]
     compute_identity: false
     compute_identity_seg: true
-    inference: S
 Train:
   data:
     real_B:
@@ -27,11 +27,11 @@ Train:
       suffix: .png
       split: /home/lkreitner/OCTA-seg/datasets/OCTA-500_healthy/train_
     real_A:
-      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025/304x304
       suffix: .png
     real_A_seg:
-      folder: /home/lkreitner/arterial-tree-generation/dataset_01_12_22
-      suffix: gray.png
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025/1216x1216
+      suffix: .png
     deep:
       folder: /home/lkreitner/OCTA-seg/datasets/deep_11_11_22
       suffix: .png
@@ -50,6 +50,23 @@ Train:
       - real_A_seg
       - deep
       image_only: true
+    - name: ToGrayScaled
+      keys:
+        - real_B
+    - name: EnsureChannelFirstd
+      keys:
+      - real_A
+      - real_B
+      - real_A_seg
+      - deep
+      strict_check: false
+    - name: Resized
+      keys:
+      - real_B
+      spatial_size:
+      - 304
+      - 304
+      mode: bilinear
     - name: ScaleIntensityd
       keys:
       - real_A
@@ -58,13 +75,6 @@ Train:
       - deep
       minv: 0
       maxv: 1
-    - name: EnsureChannelFirstd
-      keys:
-      - real_A
-      - real_B
-      - real_A_seg
-      - deep
-      strict_check: false
     - name: RandFlipd
       keys:
       - real_A
@@ -116,7 +126,7 @@ Train:
       - name: AsDiscrete
         threshold: 0.5
       - name: RemoveSmallObjects
-        min_size: 256
+        min_size: 160
     label: null
 Validation:
   batch_size: 4
@@ -124,10 +134,10 @@ Test:
   batch_size: 1
   data:
     real_B:
-      folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500/images
+      folder: /home/shared/Data/WEH_OCTA
       suffix: .png
     real_A:
-      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025/304x304
       suffix: .png
     deep:
       folder: /home/lkreitner/OCTA-seg/datasets/deep_11_11_22
@@ -198,10 +208,10 @@ Test:
       - name: AsDiscrete
         threshold: 0.5
       - name: RemoveSmallObjects
-        min_size: 256
+        min_size: 160
     label: null
 Output:
-  save_dir: "/home/lkreitner/OCTA-seg/results/gan-ves-seg"
+  save_dir: /home/lkreitner/OCTA-seg/results/gan-ves-seg
   save_to_disk: true
   save_to_tensorboard: true
   save_interval: 1

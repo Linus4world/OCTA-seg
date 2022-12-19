@@ -48,6 +48,14 @@ Validation:
       - image
       - label
       strict_check: false
+    - name: Resized
+      keys:
+      - image
+      - label
+      spatial_size:
+      - 368
+      - 368
+      mode: bilinear
     - name: Rotate90d
       keys:
       - image
@@ -58,6 +66,10 @@ Validation:
       - image
       - label
       spatial_axis: 0
+    - name: AsDiscreted
+      keys:
+      - label
+      threshold: 0.5
     - name: CastToTyped
       keys:
       - image
@@ -79,14 +91,14 @@ Test:
   data:
     image:
       # folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images/ # Edinburgh
-      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_0.txt
+      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_4.txt
 
       # folder: /home/lkreitner/OCTA-seg/datasets/ROSE-1/images/ # ROSE-1
-      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_0.txt
+      # split: /home/lkreitner/OCTA-seg/datasets/ROSE-1/val_4.txt
 
-      folder: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/images/ # OCTA-500
-      split: /home/lkreitner/OCTA-seg/datasets/OCTA_500_3x3/train_0.txt
-
+      folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500/images # OCTA-500
+      # split: /home/lkreitner/OCTA-seg/datasets/OCTA-500/val_4.txt
+      # folder: /home/shared/Data/WEH_OCTA
       suffix: .png
   save_images: false
   data_augmentation:
@@ -94,6 +106,9 @@ Test:
     keys:
     - image
     image_only: true
+  - name: ToGrayScaled
+    keys:
+    - image
   - name: ScaleIntensityd
     keys:
     - image
@@ -103,6 +118,13 @@ Test:
     keys:
     - image
     strict_check: false
+  # - name: Resized
+  #   keys:
+  #   - image
+  #   spatial_size:
+  #   - 368
+  #   - 368
+  #   mode: bilinear
   - name: Rotate90d
     keys:
     - image
@@ -118,18 +140,18 @@ Test:
   post_processing:
     prediction:
     - name: AsDiscrete
-      # threshold: 0.5 # Edinburgh
-      # threshold: 0.59 # ROSE
-      threshold: 0.62 # OCTA-500
+      threshold: 0.56 # Edinburgh
+      # threshold: 0.578 # ROSE
+      # threshold: 0.65 # OCTA-500
     - name: RemoveSmallObjects
-      # min_size: 8 # Edinburgh
-      # min_size: 32 # ROSE-1
-      min_size: 64 # OCTA-500
+      min_size: 5 # Edinburgh
+      # min_size: 42 # ROSE-1
+      # min_size: 40 # OCTA-500
     label: null
-  num_samples: 5
-  save_dir: /home/lkreitner/OCTA-seg/results/oof/test
+  num_samples: 6000
+  save_dir: /home/shared/OCTA_analysis/OCTA-500/oof
 Output:
-  save_dir: "/home/lkreitner/OCTA-seg/results/oof"
+  save_dir: /home/lkreitner/OCTA-seg/results/oof
   save_to_disk: true
   save_to_tensorboard: false
   save_interval: 1

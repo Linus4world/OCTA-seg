@@ -74,9 +74,9 @@ class NoiseModel(torch.nn.Module):
         self.grid_size = grid_size
         self.vessel_noise = ControlPointBetaNoise(self.grid_size)
         self.specle_noise = ControlPointBetaNoise(self.grid_size)
-        self.lambda_gamma = lambda_gamma
         self.lambda_delta = lambda_delta
         self.lambda_speckle = lambda_speckle
+        self.lambda_gamma = lambda_gamma
         self.alpha = alpha
 
     def forward(self, I: torch.Tensor, I_d: torch.Tensor, adversarial: bool) -> torch.Tensor:

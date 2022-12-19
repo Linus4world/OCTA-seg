@@ -1,6 +1,5 @@
 import os
 import random
-import csv
 import numpy as np
 
 def get_custom_file_paths(folder, name):
@@ -17,28 +16,32 @@ def mkdir(path):
         os.mkdir(path)
 
 K = 5
-stratified = False
+stratified = True
 train_split = 1-(1/K)
 
 random.seed(0)
 # data_root = '/home/lkreitner/OCTA-seg/datasets/'
 # mkdir(data_root)
-data_root = '/home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images'
-mkdir(data_root)
+data_root = '/home/lkreitner/OCTA-seg/datasets/OCTA-500_healthy'
+if not os.path.exists(data_root):
+    os.makedirs(data_root)
 
 
 if stratified:
-    labels_file = "/home/shared/Data/DRAC22/B. Image Quality Assessment/2. Groundtruths/a. DRAC2022_ Image Quality Assessment_Training Labels.csv"
-    reader = csv.reader(open(labels_file, 'r'))
-    next(reader)
-    all_labels = np.array([int(v) for k, v in reader])
+    # labels_file = "/home/shared/Data/DRAC22/B. Image Quality Assessment/2. Groundtruths/a. DRAC2022_ Image Quality Assessment_Training Labels.csv"
+    # reader = csv.reader(open(labels_file, 'r'))
+    # next(reader)
+    # all_labels = np.array([int(v) for k, v in reader])
+    all_labels=["NORMAL","CNV","NORMAL","DR","NORMAL","DR","NORMAL","NORMAL","NORMAL","AMD","DR","NORMAL","NORMAL","NORMAL","DR","NORMAL","DR","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","AMD","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","DR","NORMAL","CNV","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","DR","NORMAL","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","AMD","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","AMD","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","DR","NORMAL","NORMAL","DR","NORMAL","NORMAL","CNV","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","NORMAL","AMD","NORMAL","AMD","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","CNV","CNV","NORMAL","NORMAL","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","NORMAL","DR","NORMAL"]
+    all_labels = np.array([l == "NORMAL" for l in all_labels])
     all_indices=list(range(len(all_labels)))
-    indices_0 = np.where(all_labels==0)[0]
-    indices_1 = np.where(all_labels==1)[0]
-    indices_2 = np.where(all_labels==2)[0]
+    indices_0 = np.where(all_labels)[0]
+    indices_1 = np.where(~all_labels)[0]
+    # indices_1 = np.where(all_labels==1)[0]
+    # indices_2 = np.where(all_labels==2)[0]
     random.shuffle(indices_0)
     random.shuffle(indices_1)
-    random.shuffle(indices_2)
+    # random.shuffle(indices_2)
 
     start_ind_0 = 0
     end_ind_0 = 0
@@ -51,15 +54,16 @@ if stratified:
         end_ind_0 = round(((i+1)/K) * len(indices_0))
         start_ind_1 = end_ind_1
         end_ind_1 = round(((i+1)/K) * len(indices_1))
-        start_ind_2 = end_ind_2
-        end_ind_2 = round(((i+1)/K) * len(indices_2))
+        # start_ind_2 = end_ind_2
+        # end_ind_2 = round(((i+1)/K) * len(indices_2))
 
         val_split_i = np.sort([
             *indices_0[start_ind_0:end_ind_0],
-            *indices_1[start_ind_1:end_ind_1],
-            *indices_2[start_ind_2:end_ind_2]
+            # *indices_1[start_ind_1:end_ind_1],
+            # *indices_2[start_ind_2:end_ind_2]
         ])
-        train_split_i = [l for l in all_indices if l not in val_split_i]
+        # train_split_i = [l for l in all_indices if l not in val_split_i]
+        train_split_i = [l for l in all_indices if l not in val_split_i and all_labels[l]]
 
         with open(os.path.join(data_root, f'train_{i}.txt'), 'w+') as f:
             f.writelines([f"{i}\n" for i in train_split_i])

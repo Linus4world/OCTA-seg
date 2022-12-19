@@ -40,7 +40,7 @@ set_determinism(seed=0)
 task: Task = config["General"]["task"]
 
 test_loader = get_dataset(config, "test")
-post_pred, _ = get_post_transformation(config, "test", task,)
+post_pred, _ = get_post_transformation(config, "test", task)
 
 device = torch.device(config["General"]["device"])
 
@@ -66,13 +66,13 @@ with torch.no_grad():
             # graph_img = graph_file_to_img(graph_file, val_outputs[0].shape[-2:])
             inference_mode = config["General"].get("inference") or "pred"
             image_name: str = test_data[input_key+"_path"][0].split("/")[-1]
-            plot_sample(config["Test"]["save_dir"]+epoch_suffix, inputs[0], outputs[0], None, test_data[input_key+"_path"][0], suffix=f"{inference_mode}_{image_name.split('.')[0]}", full_size=True)
+            plot_sample(save_dir, inputs[0], outputs[0], None, test_data[input_key+"_path"][0], suffix=f"{inference_mode}_{image_name.split('.')[0]}", full_size=True)
             
-            plot_single_image(config["Test"]["save_dir"]+epoch_suffix, inputs[0], image_name)
-            plot_single_image(config["Test"]["save_dir"]+epoch_suffix, outputs[0], inference_mode + "_" + image_name)
+            # plot_single_image(save_dir, inputs[0], image_name)
+            plot_single_image(save_dir, outputs[0], inference_mode + "_" + image_name)
             # _ = extract_vessel_graph_features(val_outputs[0], config["Test"]["save_dir"], config["Voreen"], number=num_sample)
         elif task == Task.CONSTRASTIVE_UNPAIRED_TRANSLATION:
-            plot_single_image(config["Test"]["save_dir"]+epoch_suffix, outputs[0], test_data["path"][0].split("/")[-1])
+            plot_single_image(save_dir, outputs[0], test_data["path"][0].split("/")[-1])
         elif task == Task.AREA_SEGMENTATION:
             for i in range(len(outputs[0])):
                 dir = os.path.join(config["Test"]["save_dir"], str(i))

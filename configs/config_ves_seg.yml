@@ -16,24 +16,15 @@ General:
 Train:
   data:
     image:
-      # - "/home/lkreitner/OCTA-CUT/results/OCTA_3x3_31-09-22/test_100/images/fake_B/"
-      # - z.png
-      # - "/home/lkreitner/OCTA-CUT/results/OCTA_3x3_11-10-22/test_300/images/fake_B"
-      # - .png
-      # - /home/lkreitner/OCTA-seg/results/cut/20221021_224019/test_150
-      folder: /home/lkreitner/OCTA-seg/datasets/synth_0008_304x304
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025
       suffix: .png
-      split: /home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train.txt
+      # split: /home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train.txt
     label:
-      folder: /home/lkreitner/OCTA-seg/datasets/synth_0008
-    # - /home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_00135
-    # - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_OLD"
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025_1216x1216
       suffix: .png
-      split: /home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train.txt
+      # split: /home/lkreitner/OCTA-seg/datasets/synth_24_07_22/train.txt
     deep:
       folder: /home/lkreitner/OCTA-seg/datasets/deep_11_11_22
-    # - /home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_00135
-    # - "/home/lkreitner/OCTA-CUT/datasets/OCTA_3x3/trainA_OLD"
       suffix: .png
   epochs: 30
   epochs_decay: 0
@@ -41,7 +32,7 @@ Train:
   batch_size: 4
   lr: 0.0001
   loss: DiceBCELoss
-  AT: false
+  AT: true
   data_augmentation:
   - name: LoadImaged
     keys:
@@ -71,19 +62,37 @@ Train:
   #   - deep
   #   minv: 0
   #   maxv: 1
-  # - name: Resized
-  #   keys:
-  #   - image
-  #   - label
-  #   spatial_size:
-  #   - 1216
-  #   - 1216
-  - name: NoiseModeld
+  - name: Resized
+    keys:
+    - image
+    - deep
+    spatial_size:
+    - 1216
+    - 1216
+    mode: bilinear
+  - name: RandCropOrPadd
     keys:
       - image
+      - label
+      - deep
+    prob: 1
+    min_factor: 0.2965
+    max_factor: 0.2965
+  - name: Resized
+    keys:
+    - deep
+    spatial_size:
+    - 90
+    - 90
+    mode: bilinear
+  # - name: NoiseModeld
+  #   keys:
+  #     - image
+  #   grid_size: [3,3]
   - name: RandomDecreaseResolutiond
     keys:
       - image
+      - deep
     max_factor: 0.25
   - name: RandFlipd
     keys:
@@ -137,7 +146,7 @@ Train:
     - name: AsDiscrete
       threshold: 0.5
     - name: RemoveSmallObjects
-      min_size: 124
+      min_size: 128
     label:
     - name: CastToType
       dtype: uint8
@@ -173,10 +182,10 @@ Validation:
     - label
     mode: bilinear
     spatial_size:
-    # - 368
-    # - 368
-    - 1216
-    - 1216
+    - 360
+    - 360
+    # - 1216
+    # - 1216
   - name: Rotate90d
     keys:
     - image
@@ -203,7 +212,7 @@ Validation:
       - name: AsDiscrete
         threshold: 0.5
       - name: RemoveSmallObjects
-        min_size: 124
+        min_size: 128
     label:
       - name: CastToType
         dtype: uint8

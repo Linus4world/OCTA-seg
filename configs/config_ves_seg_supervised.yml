@@ -16,15 +16,18 @@ General:
 Train:
   data:
     image:
-      folder: /home/lkreitner/OCTA-seg/results/gan-ves-seg/20221209_235844/test_100_G
+      folder: /home/lkreitner/OCTA-seg/results/gan-ves-seg/20221209_130923/XY
       suffix: .png
       # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/train_
     label:
-      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025_OCTA-500
+      folder: /home/lkreitner/OCTA-seg/datasets/synth_0025/1216x1216/XY
       suffix: .png
       # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/train_
-  epochs: 60
-  epochs_decay: 0
+    deep:
+      folder: /home/lkreitner/OCTA-seg/datasets/deep_11_11_22
+      suffix: .png
+  epochs: 12
+  epochs_decay: 10
   val_interval: 1
   batch_size: 4
   lr: 0.0001
@@ -35,17 +38,20 @@ Train:
       keys:
       - image
       - label
+      - deep
       image_only: true
     - name: ScaleIntensityd
       keys:
       - image
       - label
+      - deep
       minv: 0
       maxv: 1
     - name: EnsureChannelFirstd
       keys:
       - image
       - label
+      - deep
       strict_check: false
     - name: Resized
       keys:
@@ -54,6 +60,13 @@ Train:
       spatial_size:
       - 1216
       - 1216
+      mode: bilinear
+    - name: NoiseModeld
+      keys:
+        - image
+      lambda_delta: 0.7
+      lambda_speckle: 0.001
+      lambda_gamma: 0.3
     - name: RandFlipd
       keys:
       - image
@@ -74,13 +87,13 @@ Train:
       prob: 1
       range_x: 0.17453292519943295
       padding_mode: zeros
-    - name: RandAdjustContrastd
-      keys:
-      - image
-      prob: 1
-      gamma:
-      - 0.5
-      - 2.5
+    # - name: RandCropOrPadd
+    #   keys:
+    #     - image
+    #     - label
+    #   prob: 1
+    #   min_factor: 0.2965
+    #   max_factor: 0.2965
     - name: AsDiscreted
       keys:
       - label
@@ -107,11 +120,11 @@ Validation:
     image:
       folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500/images
       suffix: .png
-      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_
+      split: /home/lkreitner/OCTA-seg/datasets/OCTA-500/val_4.txt
     label:
       folder: /home/lkreitner/OCTA-seg/datasets/OCTA-500/segmentations
       suffix: .png
-      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_
+      split: /home/lkreitner/OCTA-seg/datasets/OCTA-500/val_4.txt
   data_augmentation:
     - name: LoadImaged
       keys:
@@ -136,6 +149,7 @@ Validation:
       spatial_size:
       - 1216
       - 1216
+      mode: bilinear
     - name: Rotate90d
       keys:
       - image
@@ -170,9 +184,9 @@ Test:
   batch_size: 1
   data:
     image:
-      folder: /home/lkreitner/OCTA-seg/datasets/Edinburgh/original_images
+      folder: /home/shared/Data/WEH_OCTA
       suffix: .png
-      split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_
+      # split: /home/lkreitner/OCTA-seg/datasets/Edinburgh/val_
   num_samples: 10
   save_images: false
   data_augmentation:
@@ -180,6 +194,9 @@ Test:
       keys:
       - image
       image_only: true
+    - name: ToGrayScaled
+      keys:
+      - image
     - name: ScaleIntensityd
       keys:
       - image
@@ -195,6 +212,7 @@ Test:
       spatial_size:
       - 1216
       - 1216
+      mode: bilinear
     - name: Rotate90d
       keys:
       - image
@@ -214,7 +232,7 @@ Test:
     - name: AsDiscrete
       threshold: 0.5
     - name: RemoveSmallObjects
-      min_size: 100
+      min_size: 160
     label:
     - name: CastToType
       dtype: uint8
